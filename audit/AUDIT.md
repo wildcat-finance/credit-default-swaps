@@ -44,3 +44,23 @@ Evidence:
 - `FOUNDRY_PROFILE=ci forge test`: 23 passed, 0 failed, 0 skipped
 - two fuzz properties at 1,000 runs each
 - three invariant properties at 256 runs and 32,768 calls each, with no handler revert
+
+## Step 2, round 3 -- 2026-08-16
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+Leads not pursued: the disclosed stock-V2 historical observation limit only.
+
+The X-ray model, contract review and refreshed Fizz-compatible Foundry campaign were repeated after
+the documentation fix. Contract behavior, documentation and the invariant ledger agree.
+
+Evidence:
+
+- `forge fmt --check`
+- `forge build`
+- `FOUNDRY_PROFILE=ci forge test`: 23 passed, 0 failed, 0 skipped
+- two fuzz properties at 1,000 runs each
+- three invariant properties at 256 runs and 32,768 calls each, with no handler revert
+- `script/check-markdown.sh`

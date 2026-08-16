@@ -58,3 +58,9 @@ The fixed tree and refreshed unprotection handler passed the CI campaign:
 - handler reverts: 0.
 
 Manual review found one documentation mismatch for unprotection and no new contract or harness defect.
+
+## Round 3 result
+
+No Solidity changed after round 2. The CI campaign was repeated after the product documents were
+corrected: 23 tests passed, including both 1,000-run fuzz properties and three 32,768-call stateful
+properties. No invariant failed and no handler call reverted.
