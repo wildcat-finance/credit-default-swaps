@@ -105,9 +105,9 @@ assets, release checks and the design-history note. The reviewed implementation 
 `74b1a93`.
 
 The factory fixes expiry when the seller creates the facility and snapshots the full-notional wrapper
-share budget with `previewWithdraw(notional)`. Multiple lenders can enter until expiry. Each fill pays
-an ACT/365 premium for its own remaining term, tenders the incremental canonical wrapper shares and
-receives the combined debt-and-cover receipt.
+share budget with `previewWithdraw(notional)`. Multiple lenders can enter through the market-specific
+deadline at `expiry - (grace + 90 days)`. Each fill pays an ACT/365 premium for its own remaining term,
+tenders the incremental canonical wrapper shares and receives the combined debt-and-cover receipt.
 
 ## Value and trust boundaries
 
@@ -145,11 +145,13 @@ released after accounting collateral reached zero. All four have regression test
 8. Default and maturity cannot reverse.
 9. Failed vault restoration occurs before any buyer asset moves.
 10. Terminal release can recover actual cash and vault shares even when accounting collateral is zero.
+11. Every successful fill leaves at least `grace + 90 days` before expiry.
 
 ## Test posture
 
 The implementation baseline had 31 Foundry tests and 88.51% line coverage. The first audit pass adds
-five regression tests, taking the suite to 36 tests. The stateful handler varies time, delinquency,
+five regression tests, taking the suite to 36 tests. The horizon revision adds two more, taking the
+suite to 38. The stateful handler varies time, delinquency,
 fills, allocation, transfers, unprotection, checkpointing, claims, debt redemption and both seller-side
 withdrawal paths.
 

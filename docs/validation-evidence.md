@@ -35,6 +35,12 @@ The second Step 3 audit pass was clean. Coverage on the fixed tree measured 89.2
 statements, 65.56% of branches and 90.59% of functions overall. The facility reached 92.23% line
 coverage and the factory reached 97.37%.
 
+The adopted horizon revision adds two boundary tests, taking the suite to 38. Entry succeeds at the
+derived deadline, leaves exactly the full default threshold until expiry and rejects one second later.
+The revised tree passes the release gate. Coverage measures 89.30% of lines, 87.97% of statements,
+66.30% of branches and 90.59% of functions overall; facility line coverage is 92.34% and factory line
+coverage remains 97.37%.
+
 ## Stateful properties
 
 1. Collateral accounting never creates notional.

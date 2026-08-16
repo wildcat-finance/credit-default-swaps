@@ -53,7 +53,8 @@ contract FacilityHandler is Test {
     CoveredCDSFacility.Lifecycle state = facility.lifecycle();
     if (
       (state != CoveredCDSFacility.Lifecycle.Offered
-          && state != CoveredCDSFacility.Lifecycle.Active) || block.timestamp >= facility.expiry()
+          && state != CoveredCDSFacility.Lifecycle.Active)
+        || block.timestamp > facility.entryDeadline()
     ) return;
     uint256 available = facility.availableCover();
     if (available == 0) return;
@@ -180,7 +181,11 @@ contract CoveredCDSInvariantTest is CoveredCDSTestBase {
     if (
       state == CoveredCDSFacility.Lifecycle.Offered || state == CoveredCDSFacility.Lifecycle.Active
     ) {
-      assertEq(facility.availableCover(), facility.remainingCollateral() - facility.totalSupply());
+      if (block.timestamp <= facility.entryDeadline()) {
+        assertEq(facility.availableCover(), facility.remainingCollateral() - facility.totalSupply());
+      } else {
+        assertEq(facility.availableCover(), 0);
+      }
     }
   }
 

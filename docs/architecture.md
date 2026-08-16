@@ -18,7 +18,7 @@ The factory checks:
 - the market base asset and optional ERC-4626 vault asset match;
 - the market has a nonzero delinquency fee;
 - the refreshed market is not closed;
-- tenor is at least grace plus 90 days and no more than ten years; and
+- tenor exceeds grace plus 90 days and is no more than ten years; and
 - notional, spread and the wrapper share budget are valid.
 
 It calls `market.updateState()`, snapshots
@@ -42,7 +42,8 @@ the permanently reduced collateral capacity before expiry. Default and maturity 
 
 ## Continuous issuance
 
-`fill(coverAmount, receiver)` accepts available amounts before expiry. The facility first
+`fill(coverAmount, receiver)` accepts available amounts through `entryDeadline`, calculated as
+`expiry - (grace + 90 days)`. The facility first
 updates the market and rejects entry if it is closed or `timeDelinquent != 0`. It then restores cash equal to the
 prospective receipt supply before pulling either buyer asset.
 

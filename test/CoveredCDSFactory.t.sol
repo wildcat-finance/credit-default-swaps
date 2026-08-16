@@ -19,6 +19,10 @@ contract CoveredCDSFactoryTest is CoveredCDSTestBase {
     assertEq(factory.facilities(0), facility);
     assertEq(CoveredCDSFacility(facility).referenceShareBudget(), NOTIONAL);
     assertEq(CoveredCDSFacility(facility).expiry(), block.timestamp + TENOR);
+    assertEq(
+      CoveredCDSFacility(facility).entryDeadline(),
+      block.timestamp + TENOR - market.delinquencyGracePeriod() - 90 days
+    );
   }
 
   function testRejectsUnregisteredMarket() public {
@@ -57,7 +61,12 @@ contract CoveredCDSFactoryTest is CoveredCDSTestBase {
     factory.createFacility(params);
 
     params = _params();
-    params.tenor = market.delinquencyGracePeriod() + 90 days - 1;
+    params.tenor = market.delinquencyGracePeriod() + 90 days;
+    vm.expectRevert(CoveredCDSFactory.InvalidTenor.selector);
+    vm.prank(seller);
+    factory.createFacility(params);
+
+    params.tenor -= 1;
     vm.expectRevert(CoveredCDSFactory.InvalidTenor.selector);
     vm.prank(seller);
     factory.createFacility(params);

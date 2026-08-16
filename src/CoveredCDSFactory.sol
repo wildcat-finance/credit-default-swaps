@@ -83,7 +83,7 @@ contract CoveredCDSFactory {
     uint256 referenceShareBudget = wrapper.previewWithdraw(params.notional);
     if (referenceShareBudget == 0) revert InvalidReferenceShareBudget();
     if (market.delinquencyFeeBips() == 0) revert ZeroDelinquencyFee();
-    if (params.tenor < market.delinquencyGracePeriod() + DEFAULT_DELAY) revert InvalidTenor();
+    if (params.tenor <= market.delinquencyGracePeriod() + DEFAULT_DELAY) revert InvalidTenor();
     IERC20Like baseAsset = IERC20Like(market.asset());
     if (address(baseAsset) == address(0)) revert ZeroAddress();
     IERC4626Like collateralVault = IERC4626Like(params.collateralVault);

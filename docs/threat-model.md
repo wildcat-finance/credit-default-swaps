@@ -26,10 +26,9 @@ A lender may know more about the borrower than the seller. A fill rejects any cu
 onchain arrears signal. Creation and entry also reject a closed market. These guards cannot price
 private or offchain information.
 
-Fills remain open until expiry. When less than grace plus 90 days remains, a buyer entering from zero
-current delinquency cannot reach the credit-event threshold before expiry. The declining premium does
-not remove that structural horizon. This is an explicit prototype term retained to match continuous
-entry, not a claim that every late receipt can still default.
+Fills close at `expiry - (grace + 90 days)`. Because entry also requires zero current delinquency,
+every admitted buyer has enough remaining term for uninterrupted delinquency to reach the credit-event
+threshold. The factory rejects a tenor that would leave no positive entry period.
 
 ### Naked protection
 

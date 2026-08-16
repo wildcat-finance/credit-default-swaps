@@ -27,6 +27,7 @@ contract CoveredCDSFacility {
   error NotSeller();
   error NotRecoveryBeneficiary();
   error Expired();
+  error EntryClosed();
   error CoverUnavailable(uint256 requested, uint256 available);
   error MarketAlreadyDelinquent();
   error MarketClosed();
@@ -83,6 +84,7 @@ contract CoveredCDSFacility {
   uint256 public immutable referenceShareBudget;
   uint256 public immutable tenor;
   uint256 public immutable annualPremiumBips;
+  uint256 public immutable entryDeadline;
   uint256 public immutable expiry;
   uint256 public immutable claimDeadline;
 
@@ -138,12 +140,14 @@ contract CoveredCDSFacility {
     tenor = tenor_;
     annualPremiumBips = annualPremiumBips_;
     expiry = block.timestamp + tenor_;
+    entryDeadline = expiry - (market_.delinquencyGracePeriod() + DEFAULT_DELAY);
     claimDeadline = block.timestamp + tenor_ + CLAIM_WINDOW;
     remainingCollateral = notional_;
     decimals = market_.decimals();
   }
 
   function availableCover() public view returns (uint256) {
+    if (block.timestamp > entryDeadline) return 0;
     return remainingCollateral > totalSupply ? remainingCollateral - totalSupply : 0;
   }
 
@@ -158,13 +162,14 @@ contract CoveredCDSFacility {
     return market.delinquencyGracePeriod() + DEFAULT_DELAY;
   }
 
-  /// @notice Buys cover until expiry by tendering the associated canonical wrapper shares.
+  /// @notice Buys cover while enough term remains for a fresh default to reach the threshold.
   function fill(uint256 coverAmount, address receiver) external nonReentrant {
     Lifecycle state = lifecycle;
     if (state != Lifecycle.Offered && state != Lifecycle.Active) {
       revert WrongLifecycle(Lifecycle.Active, state);
     }
     if (block.timestamp >= expiry) revert Expired();
+    if (block.timestamp > entryDeadline) revert EntryClosed();
     if (coverAmount == 0) revert ZeroAmount();
     receiver = _validReceiver(receiver);
 

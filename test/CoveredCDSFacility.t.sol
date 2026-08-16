@@ -84,6 +84,29 @@ contract CoveredCDSFacilityTest is CoveredCDSTestBase {
     expired.fill(1, lender);
   }
 
+  function testEntryDeadlineLeavesFullDefaultHorizon() public {
+    CoveredCDSFacility facility = _create();
+    vm.warp(facility.entryDeadline());
+    _fill(facility, lender, NOTIONAL / 4);
+
+    assertEq(facility.expiry() - block.timestamp, facility.defaultThreshold());
+    market.setTimeDelinquent(uint32(facility.defaultThreshold()));
+    vm.warp(facility.expiry());
+    facility.checkpoint();
+    assertEq(uint256(facility.lifecycle()), uint256(CoveredCDSFacility.Lifecycle.Defaulted));
+  }
+
+  function testRejectsEntryAfterDerivedDeadlineBeforeExpiry() public {
+    CoveredCDSFacility facility = _create();
+    vm.warp(facility.entryDeadline() + 1);
+    assertLt(block.timestamp, facility.expiry());
+    assertEq(facility.availableCover(), 0);
+
+    vm.expectRevert(CoveredCDSFacility.EntryClosed.selector);
+    vm.prank(lender);
+    facility.fill(1, lender);
+  }
+
   function testRejectsClosedMarketEntry() public {
     CoveredCDSFacility facility = _create();
     market.setClosed(true);

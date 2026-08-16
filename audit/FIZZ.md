@@ -100,3 +100,10 @@ The fixed tree repeated the default stateful campaign during coverage collection
 each of the five invariants completed 128,000 calls with no failed property or handler revert. Directed
 regressions for the four round-one defects also passed. The second review found no new harness or
 contract defect.
+
+## Supplemental horizon result
+
+The handler now stops fill attempts after the derived entry deadline, and the capacity property expects
+`availableCover()` to be zero after that point. The default and CI campaigns passed on the revised
+tree: 38 tests, two fuzz properties at 1,000 CI runs and five stateful properties at 32,768 CI calls
+or 128,000 default-profile calls. No property failed and no handler call reverted.

@@ -121,3 +121,33 @@ Evidence:
 - 36 Foundry tests passed
 - five invariants completed 128,000 calls each with no failure or handler revert
 - round-one release gate remained green on the fixed tree
+
+## Step 3, supplemental horizon round -- 2026-08-16
+
+The product decision made after round 2 replaces the accepted S3-R1-05 term. Primary issuance now
+closes at `expiry - (market grace + 90 days)`, and the factory rejects a tenor which leaves no positive
+entry period. This preserves the zero-delinquency entry guard while ensuring that a fresh uninterrupted
+default can still reach the threshold for every admitted buyer.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No finding in the revised deadline calculation, boundary ordering or adjacent settlement paths. | clean |
+
+S3-R1-05 is superseded by this revision. Its earlier `accepted` status remains in round 1 as the
+historical result at that commit.
+
+Review points:
+
+- Wildcat V2 declares `delinquencyGracePeriod` immutable, so a creation-time deadline cannot drift.
+- Factory validation uses `tenor > grace + 90 days`, preventing constructor underflow and a zero-length entry period.
+- A fill is valid at deadline equality and rejected one second later, before buyer assets move.
+- At equality, `expiry - entryDeadline == defaultThreshold`; default still wins at expiry equality.
+- `availableCover()` reports zero after entry closes, while allocation and terminal settlement remain unchanged.
+
+Evidence:
+
+- `script/release-gate.sh`: 38 tests passed under default and CI profiles
+- two CI fuzz properties at 1,000 runs each
+- five invariants at 128,000 default-profile calls and 32,768 CI calls, with no failure or handler revert
+- `forge coverage --report summary`: 89.30% lines, 87.97% statements, 66.30% branches and 90.59% functions
+- facility line coverage: 92.34%; factory line coverage: 97.37%
