@@ -1,0 +1,138 @@
+{
+  "meta": {
+    "repo": "/Users/c0rtexzer0/Documents/ChatGPT/Wildcat CDS Work",
+    "src_dir": "src",
+    "generated_at": "2026-08-16T02:30:48.087193+00:00",
+    "git_head": "a3c2494",
+    "git_branch": "issue-2-scaffold-research-repository",
+    "total_commits": 2,
+    "total_source_files": 1,
+    "analysis_time_ms": 392
+  },
+  "repo_shape": {
+    "classification": "squashed_import",
+    "total_commits": 2,
+    "source_touching_commits": 1,
+    "bulk_import_sha": "a3c2494",
+    "date_spread_days": 0,
+    "first_commit_date": "2026-08-16",
+    "last_commit_date": "2026-08-16",
+    "signals": [
+      "~9 source lines arrived in 1 commit (a3c2494)",
+      "Only 1 commit touches source files",
+      "Date spread: 0 days",
+      "1 commits touch source files out of 2 total"
+    ]
+  },
+  "fix_candidates": [
+    {
+      "sha": "a3c2494",
+      "full_sha": "a3c249437761252faaffb3c405afd16fa8b9de08",
+      "date": "2026-08-16",
+      "author": "Dr Laurence E. Day",
+      "subject": "Scaffold the CDS research repository",
+      "score": 6,
+      "reasons": [
+        "unclassified",
+        "changes signature/auth handling",
+        "changes accounting/balance logic",
+        "focused change (1 source files)",
+        "includes test changes"
+      ],
+      "source_files_touched": [
+        "src/Scaffold.sol"
+      ],
+      "test_changed": true,
+      "lines_changed": 9
+    }
+  ],
+  "dangerous_area_changes": {},
+  "late_changes": {
+    "window_days": 30,
+    "cutoff_date": "2026-07-17",
+    "latest_commit_date": "2026-08-16",
+    "late_commits": [
+      {
+        "sha": "a3c2494",
+        "date": "2026-08-16",
+        "author": "Dr Laurence E. Day",
+        "subject": "Scaffold the CDS research repository",
+        "source_files": [
+          "src/Scaffold.sol"
+        ],
+        "test_changed": true,
+        "lines_changed": 9
+      }
+    ],
+    "source_without_test_count": 0,
+    "total_late_source_commits": 1
+  },
+  "forked_deps": {
+    "detected_libs": [
+      {
+        "name": "v2-protocol",
+        "path": "lib/v2-protocol",
+        "known_upstream": null,
+        "is_submodule": true,
+        "is_internalized": false,
+        "sol_file_count": 1472,
+        "pragma_versions": [
+          "0.8.15",
+          ">0.5.0 <0.9.0",
+          ">=0.4.21 <0.9.0",
+          ">=0.4.22 <0.9.0",
+          ">=0.5.0",
+          ">=0.6.0 <0.9.0",
+          ">=0.6.12",
+          ">=0.6.2",
+          ">=0.6.2 <0.9.0",
+          ">=0.6.9 <0.9.0",
+          ">=0.7.0 <0.9.0",
+          ">=0.8.0",
+          ">=0.8.0 <0.9.0",
+          ">=0.8.13",
+          ">=0.8.13 <0.9.0",
+          ">=0.8.17",
+          ">=0.8.19",
+          ">=0.8.20",
+          ">=0.8.24",
+          ">=0.8.25",
+          "^0.8.0",
+          "^0.8.1",
+          "^0.8.13",
+          "^0.8.15",
+          "^0.8.17",
+          "^0.8.19",
+          "^0.8.2",
+          "^0.8.20",
+          "^0.8.4",
+          "^0.8.8",
+          "^0.8.9"
+        ],
+        "notes": []
+      }
+    ],
+    "removed_submodules": []
+  },
+  "tech_debt": {
+    "total_count": 0,
+    "items": [],
+    "files_with_debt": 0,
+    "capped": false
+  },
+  "dev_patterns": {
+    "test_co_change_rate": 1.0,
+    "fix_without_test_rate": 0.0,
+    "avg_commit_size": 0.0,
+    "avg_commit_size_note": "excluding bulk import",
+    "single_developer_pct": 1.0,
+    "top_contributor": "Dr Laurence E. Day",
+    "contributor_breakdown": [
+      {
+        "author": "Dr Laurence E. Day",
+        "lines_added": 9,
+        "pct": 1.0
+      }
+    ]
+  }
+}
