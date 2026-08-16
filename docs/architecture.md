@@ -17,6 +17,7 @@ The factory checks:
 - the wrapper asset is the reference market;
 - the market base asset and optional ERC-4626 vault asset match;
 - the market has a nonzero delinquency fee;
+- the refreshed market is not closed;
 - tenor is at least grace plus 90 days and no more than ten years; and
 - notional, spread and the wrapper share budget are valid.
 
@@ -41,8 +42,8 @@ the permanently reduced collateral capacity before expiry. Default and maturity 
 
 ## Continuous issuance
 
-`fill(coverAmount, receiver)` accepts any positive available amount before expiry. The facility first
-updates the market and rejects entry if `timeDelinquent != 0`. It then restores cash equal to the
+`fill(coverAmount, receiver)` accepts available amounts before expiry. The facility first
+updates the market and rejects entry if it is closed or `timeDelinquent != 0`. It then restores cash equal to the
 prospective receipt supply before pulling either buyer asset.
 
 For prospective supply `S`, initial notional `N` and reference share budget `B`, the share target is:
@@ -56,6 +57,9 @@ target(S) = ceil(B * S / N)
 The buyer contributes `target(newSupply) - currentHolderShares`. This cumulative target makes
 aggregate wrapper shares independent of fill splitting or order. The buyer pays the ceiling-rounded
 ACT/365 premium for the exact seconds left and receives one receipt unit per normalized cover unit.
+If the target increment is zero because wrapper shares are coarser than cover units, the fill rejects.
+This prevents a buyer from using wrapper shares overcontributed by earlier fills, at the cost of a
+market-dependent minimum fill granularity.
 
 ## Transfer and live exit
 
@@ -95,7 +99,8 @@ timeDelinquent >= delinquencyGracePeriod + 90 days
 The facility snapshots receipt supply and holder wrapper shares. During the one-year claim window,
 `claim(amount, receiver)` burns receipts, pays equal base asset and assigns the cumulative pro-rata
 wrapper entitlement to seller recovery. Cumulative accounting prevents split claims from avoiding
-recovery-share surrender. The last claim receives all remaining shares.
+recovery-share surrender. Partial claims round the cumulative recovery obligation up against the
+claimant; the last claim receives all remaining shares.
 
 Only the immutable recovery beneficiary can withdraw recovery shares. The claim does not attempt that
 transfer, so a hostile or inaccessible recovery address cannot block the holder's cash payout.

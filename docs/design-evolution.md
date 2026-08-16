@@ -61,7 +61,8 @@ risk or every buyer must start with the same forward protection period.
 ## Model 4: continuous fixed-expiry issuance
 
 The implemented model fixes expiry when the seller creates the facility. Any number of lenders can
-buy any available amount until that timestamp. Each fill pays for its exact remaining term. Buyers
+buy available amounts until that timestamp, provided the cumulative debt target increases by at
+least one wrapper-share unit. Each fill pays for its exact remaining term. Buyers
 tender canonical wrapper shares; the facility mints the same normalized amount of protected-debt
 receipts.
 
@@ -71,7 +72,9 @@ fills contribute the same aggregate shares. Entry stops at the first nonzero del
 
 The cost is that early and late buyers hold receipts with the same expiry but pay different premiums.
 That is intended: they bought different amounts of time. There is no dynamic spread, order book or
-mark-to-market adjustment.
+mark-to-market adjustment. Once less than the default threshold remains, a clean-market fill cannot
+default before expiry. The user requirement keeps issuance open; the limitation is accepted for this
+prototype and should be revisited before a live product.
 
 ## Collateral strategy variants
 

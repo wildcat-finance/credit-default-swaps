@@ -15,8 +15,9 @@ the receipt carries beneficial ownership of those shares together with fixed cov
 covered-only problem throughout the tenor: when the receipt moves, the debt and protection move
 together. At default, a holder surrenders the receipt for par and the debt passes to seller recovery.
 
-One seller escrows a maximum notional. Any number of lenders can buy any available amount until a
-fixed creation-time expiry. Each pays an upfront ACT/365 premium for the exact time left. A
+One seller escrows a maximum notional. Any number of lenders can buy available amounts until a fixed
+creation-time expiry, subject to the purchase adding at least one wrapper-share unit. Each pays an
+upfront ACT/365 premium for the exact time left. A
 creation-time wrapper-share budget and cumulative ceiling targets prevent split fills from diluting
 earlier buyers. Entry stops at the first nonzero onchain delinquency signal.
 
@@ -28,7 +29,8 @@ claims never call the vault. Deploying live claim reserves remains a distinct, h
 
 A facility names one registered Wildcat V2 market, base asset, canonical wrapper, seller, recovery
 beneficiary, maximum notional, expiry tenor and annual spread. Creation pulls the full notional from
-the seller.
+the seller. A closed reference market is rejected both when the facility is created and when a lender
+tries to enter later.
 
 A buyer chooses a positive amount of remaining capacity and tenders the wrapper shares which the
 facility assigns to that normalized debt amount. The buyer also pays:
@@ -198,7 +200,10 @@ Sources:
 Covered-only entry removes traders who cannot tender debt, but an existing lender can still know that
 the borrower is deteriorating. The prototype rejects a fill after any nonzero onchain delinquency. It
 does not observe private information or offchain distress. A fixed quoted spread also cannot reprice
-new information. Auctions, dynamic spreads and dealer markets are separate product experiments.
+new information. A fill with less than the default threshold left cannot reach the credit event before
+expiry. The implementation preserves the requested continuous entry rule and discloses this horizon
+conflict rather than moving the cutoff. Auctions, dynamic spreads and dealer markets are separate
+product experiments.
 
 ## Collateral deployment
 

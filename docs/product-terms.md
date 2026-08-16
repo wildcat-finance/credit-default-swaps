@@ -8,8 +8,8 @@ These terms describe the prototype code. They are not legal terms, a quote or an
 | Seller | Facility creator; posts full notional |
 | Buyer | Any holder able to tender required canonical wrapper shares |
 | Capacity | Seller notional less outstanding and permanently unprotected amounts |
-| Entry | Any positive available amount before fixed expiry |
-| Entry health | Current market `timeDelinquent` must be zero |
+| Entry | Available amount before fixed expiry which adds at least one wrapper-share unit |
+| Entry health | Market must be open and current `timeDelinquent` must be zero |
 | Premium | Upfront, ACT/365, immutable annual basis-point spread, rounded up |
 | Receipt | ERC-20 beneficial claim on bundled wrapper debt and cover |
 | Credit event | `timeDelinquent >= grace + 90 days`, recorded no later than expiry |
@@ -26,6 +26,14 @@ These terms describe the prototype code. They are not legal terms, a quote or an
 Protection is denominated in normalized base-asset units and does not grow. Wildcat debt may accrue
 inside the wrapper. Coverage can therefore fall below 100% of the debt's later value. Receipt holders
 retain the wrapper-share economics on healthy redemption; default pays the fixed protected amount.
+
+## Late-entry horizon
+
+Every successful fill observes zero current delinquency. If less than `grace + 90 days` remains, the
+contractual threshold cannot be reached before expiry even under immediate uninterrupted
+delinquency. The prototype keeps entry open because continuous issuance through expiry was an
+explicit requirement. Buyers and interfaces must disclose this rather than treating a positive
+formula premium as evidence that default is still reachable.
 
 ## What the receipt price can express
 

@@ -28,6 +28,13 @@ contract CoveredCDSFactoryTest is CoveredCDSTestBase {
     factory.createFacility(_params());
   }
 
+  function testRejectsClosedMarket() public {
+    market.setClosed(true);
+    vm.expectRevert(CoveredCDSFactory.MarketClosed.selector);
+    vm.prank(seller);
+    factory.createFacility(_params());
+  }
+
   function testRejectsNoncanonicalOrInvalidWrapper() public {
     CoveredCDSFactory.CreateParams memory params = _params();
     params.wrapper = address(new MockWrapper(address(market)));

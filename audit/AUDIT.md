@@ -64,3 +64,36 @@ Evidence:
 - two fuzz properties at 1,000 runs each
 - three invariant properties at 256 runs and 32,768 calls each, with no handler revert
 - `script/check-markdown.sh`
+
+## Step 3, round 1 -- 2026-08-16
+
+Suite review: `hexaemeron:x-ray`, `hexaemeron:solidity-auditor` and a refreshed
+`hexaemeron:fizz`-compatible stateful Foundry campaign.
+
+The twelve Solidity audit lenses produced 17 unique `(contract, function)` leads after mechanical
+deduplication. Four were confirmed implementation defects, one was a confirmed product limitation,
+and the remaining leads were rejected or retained as disclosed external assumptions.
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S3-R1-01 | medium | `src/CoveredCDSFacility.sol` | A positive fill could sit on a cumulative share-target plateau, minting additional cover without contributing new debt shares. | fixed; zero-increment fills now revert and a coarse-share regression covers the boundary |
+| S3-R1-02 | medium | `src/CoveredCDSFacility.sol` | A small partial default claim could round recovery down to zero, pay cash and leave all debt for later redemption. | fixed; non-final cumulative recovery rounds up against the claimant and a low-share regression covers the split |
+| S3-R1-03 | medium | `src/CoveredCDSFacility.sol` | Vault appreciation or rounding could leave shares after `remainingCollateral` reached zero, while the terminal release rejected a zero accounting amount. | fixed; release now considers actual cash and vault-share balances and a yield regression proves cleanup |
+| S3-R1-04 | medium | `src/CoveredCDSFactory.sol`, `src/CoveredCDSFacility.sol` | A facility could be created for, or accept a later fill from, an already closed Wildcat market even though its default path was no longer meaningful. | fixed; refreshed closed state is rejected at creation and entry |
+| S3-R1-05 | medium | `src/CoveredCDSFacility.sol` | A fill made with less than grace plus 90 days remaining cannot reach the credit-event threshold from the required zero-delinquency entry state before expiry. | accepted for the prototype; continuous entry until expiry is an explicit product choice and the horizon is now disclosed |
+
+Leads not pursued: permissionless allocation matches issue #10 and cannot move cash backing existing
+receipts; stock V2 cannot reconstruct a threshold that crossed and cured without a timely checkpoint;
+token sanctions, persistent market-update failure, negative rebase and arbitrary vault quality remain
+documented dependency risks. Seller-side share-transfer failure may delay collateral release but does
+not block holder debt redemption or default cash claims. Directly deployed facility lookalikes have no
+factory provenance, so integrations must use factory events or registry state.
+
+Evidence:
+
+- `audit/X-RAY.md`
+- `audit/FIZZ.md`
+- 36 Foundry tests, including directed regressions for all four fixed defects
+- five stateful accounting properties at 128,000 calls each under the default profile
+- CI fuzz properties at 1,000 runs and stateful properties at 32,768 calls each
+- `script/release-gate.sh`: passed, including dependency, Markdown, raster, arithmetic and size checks

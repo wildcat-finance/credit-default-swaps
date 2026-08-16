@@ -26,6 +26,11 @@ Coverage includes multiple lenders, staggered premium decay, split-fill share eq
 rounding, delinquent and expired entry, live unprotection, default partitioning, maturity, fee tokens,
 vault allocation and restoration, loss, illiquidity, in-kind terminal release and reentrant callbacks.
 
+The first Step 3 audit pass added five directed tests. The 36-test tree covers closed-market creation
+and entry, rejection of a positive fill with no incremental debt share, claimant-side recovery
+rounding and terminal recovery of vault yield after accounting collateral reaches zero. Final release
+results are recorded after the clean audit round.
+
 ## Stateful properties
 
 1. Collateral accounting never creates notional.

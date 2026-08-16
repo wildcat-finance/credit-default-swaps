@@ -7,7 +7,14 @@ delinquency and stops at expiry.
 
 ## Can several lenders use one facility?
 
-Yes. Each chooses any positive amount of remaining capacity and pays for the exact time left.
+Yes. Each chooses an available amount and pays for the exact time left. Very small amounts reject if
+they add no canonical wrapper-share unit.
+
+## Can a late fill still default?
+
+Not always. Entry requires zero delinquency. If less than grace plus 90 days remains, that clock
+cannot reach the threshold before expiry. The prototype still permits entry as requested, so buyers
+must check the remaining trigger horizon rather than relying on the premium quote alone.
 
 ## Is the receipt transferable?
 

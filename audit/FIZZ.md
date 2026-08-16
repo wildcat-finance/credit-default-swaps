@@ -64,3 +64,32 @@ Manual review found one documentation mismatch for unprotection and no new contr
 No Solidity changed after round 2. The CI campaign was repeated after the product documents were
 corrected: 23 tests passed, including both 1,000-run fuzz properties and three 32,768-call stateful
 properties. No accounting property failed and no handler call reverted.
+
+# Step 3 invariant campaign
+
+## Refresh
+
+The existing stateful harness was refreshed for continuous issuance and the optional collateral vault.
+It starts with two independent lenders, live cash cover and part of the unused capacity in the vault.
+The handler can advance time, change observed delinquency, fill from either lender, allocate excess
+cash, transfer receipts, unprotect, checkpoint, claim, redeem debt, release collateral and withdraw
+recovery.
+
+The campaign asserts five property families:
+
+- collateral accounting never creates notional;
+- open cover remains cash-backed;
+- wrapper shares stay partitioned between holders and recovery;
+- receipt supply agrees with holder balances and remaining capacity; and
+- open holder shares remain at the cumulative ceiling target after fills and unprotection.
+
+## Round 1 result
+
+The default Foundry campaign completed 128,000 calls for each of five invariants. The CI campaign
+completed 32,768 calls for each invariant and ran each fuzz property 1,000 times. No property failed
+and the handler reported no revert.
+
+The Solidity review still found boundary cases outside the original randomized shapes. Four directed
+regressions were added for zero-share fills, discrete partial-claim recovery, closed markets and
+terminal vault yield. This is a refreshed Foundry stateful campaign; no claim is made that the Fizz
+generator produced a separate Medusa or Echidna harness for this round.

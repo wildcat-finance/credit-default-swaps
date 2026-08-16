@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import { CoveredCDSFacility } from "../src/CoveredCDSFacility.sol";
+import { CoveredCDSFactory } from "../src/CoveredCDSFactory.sol";
 import { ExactTransfer } from "../src/libraries/ExactTransfer.sol";
 import { CoveredCDSTestBase } from "./CoveredCDSTestBase.sol";
 
@@ -81,6 +82,28 @@ contract CoveredCDSFacilityTest is CoveredCDSTestBase {
     vm.expectRevert(CoveredCDSFacility.Expired.selector);
     vm.prank(lender);
     expired.fill(1, lender);
+  }
+
+  function testRejectsClosedMarketEntry() public {
+    CoveredCDSFacility facility = _create();
+    market.setClosed(true);
+    vm.expectRevert(CoveredCDSFacility.MarketClosed.selector);
+    vm.prank(lender);
+    facility.fill(1, lender);
+  }
+
+  function testRejectsPositiveFillWithZeroIncrementalDebtShares() public {
+    wrapper.setShareRatio(2, 3);
+    CoveredCDSFactory.CreateParams memory params = _params();
+    params.notional = 3;
+    vm.prank(seller);
+    CoveredCDSFacility facility = CoveredCDSFacility(factory.createFacility(params));
+
+    _fill(facility, lender, 1);
+    _fill(facility, lender2, 1);
+    vm.expectRevert(CoveredCDSFacility.ZeroDebtShareFill.selector);
+    vm.prank(alice);
+    facility.fill(1, alice);
   }
 
   function testUnprotectPermanentlyReducesMaximumAndPreservesShareTargetOnRefill() public {
@@ -259,6 +282,50 @@ contract CoveredCDSFacilityTest is CoveredCDSTestBase {
     facility.claim(NOTIONAL - NOTIONAL / 3, lender2);
     assertEq(facility.sellerRecoveryShares(), shares);
     assertEq(facility.remainingCollateral(), 0);
+  }
+
+  function testPartialDefaultClaimRoundsRecoveryDebtAgainstClaimant() public {
+    wrapper.setShareRatio(2, 3);
+    CoveredCDSFactory.CreateParams memory params = _params();
+    params.notional = 3;
+    vm.prank(seller);
+    CoveredCDSFacility facility = CoveredCDSFacility(factory.createFacility(params));
+    _fill(facility, lender, 3);
+
+    market.setTimeDelinquent(uint32(facility.defaultThreshold()));
+    facility.checkpoint();
+    vm.prank(lender);
+    facility.claim(1, lender);
+    assertEq(facility.sellerRecoveryShares(), 1);
+    assertEq(facility.remainingHolderShares(), 1);
+
+    vm.warp(facility.claimDeadline() + 1);
+    vm.prank(lender);
+    facility.redeemDebt(2, lender);
+    assertEq(facility.remainingHolderShares(), 0);
+  }
+
+  function testTerminalReleaseRecoversVaultYieldAfterAccountingCollateralIsZero() public {
+    CoveredCDSFactory.CreateParams memory params = _params();
+    params.notional = 1_100;
+    params.collateralVault = address(vault);
+    vm.prank(seller);
+    CoveredCDSFacility facility = CoveredCDSFacility(factory.createFacility(params));
+    facility.allocate(1_100);
+    baseAsset.mint(address(vault), 110);
+    vault.setRate(11, 10);
+
+    _fill(facility, lender, 1_100);
+    assertEq(vault.balanceOf(address(facility)), 100);
+    vm.prank(lender);
+    facility.unprotect(1_100, lender);
+    assertEq(facility.remainingCollateral(), 0);
+
+    vm.warp(facility.expiry());
+    facility.checkpoint();
+    vm.prank(seller);
+    facility.releaseCollateral();
+    assertEq(vault.balanceOf(seller), 100);
   }
 
   function testHealthyMaturityReturnsDebtAfterSellerTakesCollateral() public {

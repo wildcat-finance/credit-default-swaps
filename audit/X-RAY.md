@@ -94,3 +94,65 @@ the pinned V2 source was used to verify interface selectors and scaled accountin
 This is a prototype, not a production deployment recommendation. The remaining work is presentation,
 operational documentation and a final release gate. Production work would also need a live V2
 integration campaign, keeper deployment, sanctions-path decisions and external review.
+
+# Step 3 X-ray
+
+## Scope
+
+Step 3 changes the facility from one-shot activation to continuous primary issuance and adds an
+optional ERC-4626 adapter for unused capacity. It also adds the product field kit, branded raster
+assets, release checks and the design-history note. The reviewed implementation baseline was
+`74b1a93`.
+
+The factory fixes expiry when the seller creates the facility and snapshots the full-notional wrapper
+share budget with `previewWithdraw(notional)`. Multiple lenders can enter until expiry. Each fill pays
+an ACT/365 premium for its own remaining term, tenders the incremental canonical wrapper shares and
+receives the combined debt-and-cover receipt.
+
+## Value and trust boundaries
+
+The facility can hold base asset, canonical wrapper shares and shares in one immutable collateral
+vault. Base asset equal to live receipt supply stays in cash. Only unused capacity may be allocated,
+and a later fill restores exact cash before taking premium or debt from the buyer. Claims never depend
+on a vault withdrawal. Terminal settlement transfers any residual vault shares in kind.
+
+The ownerless factory trusts the pinned ArchController and wrapper factory. A facility trusts the
+market state machine, the exact-transfer behaviour of its asset and wrapper, and the seller's chosen
+vault. There is no upgrade, fee switch, oracle or rescue authority.
+
+## Primary attack surfaces
+
+- cumulative rounding across fills, unprotection and default claims;
+- cash solvency while unused capacity enters and leaves the vault;
+- expiry ordering and the stock-V2 checkpoint availability dependency;
+- callbacks from the asset, wrapper, market and vault;
+- market closure and changing delinquency between facility creation and later fills; and
+- terminal cleanup of cash, wrapper shares and strategy residue.
+
+The first audit pass found four implementation defects at those boundaries: a zero-share fill plateau,
+floor-rounded partial recovery, missing closed-market guards and residual vault yield that could not be
+released after accounting collateral reached zero. All four have regression tests on the audit branch.
+
+## Invariants
+
+1. `totalPayouts + remainingCollateral + totalSellerReleased == notional`.
+2. Open cover has base-asset cash at least equal to receipt supply.
+3. Wrapper shares equal holder shares plus unwithdrawn recovery shares.
+4. Open-state holder shares equal the cumulative ceiling target for receipt supply.
+5. Receipt supply never exceeds remaining collateral.
+6. A successful positive fill contributes at least one new wrapper share.
+7. Cumulative default recovery never allocates less debt than the claimant's rounded entitlement.
+8. Default and maturity cannot reverse.
+9. Failed vault restoration occurs before any buyer asset moves.
+10. Terminal release can recover actual cash and vault shares even when accounting collateral is zero.
+
+## Test posture
+
+The implementation baseline had 31 Foundry tests and 88.51% line coverage. The first audit pass adds
+five regression tests, taking the suite to 36 tests. The stateful handler varies time, delinquency,
+fills, allocation, transfers, unprotection, checkpointing, claims, debt redemption and both seller-side
+withdrawal paths.
+
+Mocks exercise the pinned interfaces but are not a deployed V2 integration. A production candidate
+still needs a live-market campaign, adapter-specific vault review, keeper deployment, sanctions-path
+decisions and independent review.

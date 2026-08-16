@@ -36,10 +36,12 @@ not refunded. This restores raw debt liquidity without leaving detached protecti
 ## Continuous fills
 
 Every facility has one notional cap and one expiry fixed at creation. It has no funding window and no
-single-buyer rule. Any number of lenders may fill any positive amount of remaining capacity while:
+single-buyer rule. Any number of lenders may fill available capacity while:
 
 - the block timestamp is before expiry;
+- the reference market is not closed;
 - the market's current delinquency accumulator is zero; and
+- the purchase adds at least one canonical wrapper-share unit; and
 - the facility can restore cash reserves to the enlarged receipt supply.
 
 The premium for cover amount `N`, annual spread `s` in basis points and seconds remaining `t` is:
@@ -70,6 +72,9 @@ Anyone may call `checkpoint`. Default records when the market reports at least
 `delinquencyGracePeriod + 90 days` of `timeDelinquent` no later than expiry. At exact expiry, default
 has priority if the threshold is met. Otherwise the facility matures. Stock V2 cannot reconstruct a
 threshold crossing after the fact, so a live deployment would need a keeper at the expiry boundary.
+Because every fill starts from zero delinquency, a fill made with less than the default threshold left
+cannot reach the credit event before expiry. Continuous entry is retained as a requested prototype
+rule; late buyers must not treat a positive premium quote as proof that default remains reachable.
 
 ![Default and healthy maturity](docs/bd/assets/default-and-maturity.png)
 

@@ -104,6 +104,10 @@ contract MockMarket is MockERC20 {
     _state.timeDelinquent = value;
   }
 
+  function setClosed(bool value) external {
+    _state.isClosed = value;
+  }
+
   function updateState() external { }
 
   function currentState() external view returns (MarketState memory) {
