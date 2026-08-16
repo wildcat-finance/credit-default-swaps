@@ -60,6 +60,15 @@ contract FacilityHandler is Test {
     try facility.claim(amount, holder) { } catch { }
   }
 
+  function unprotect(bool asLender, uint256 amount) external {
+    address holder = asLender ? lender : alice;
+    uint256 balance = facility.balanceOf(holder);
+    if (balance == 0) return;
+    amount = bound(amount, 1, balance);
+    vm.prank(holder);
+    try facility.unprotect(amount, holder) { } catch { }
+  }
+
   function redeem(bool asLender, uint256 amount) external {
     address holder = asLender ? lender : alice;
     uint256 balance = facility.balanceOf(holder);
@@ -107,6 +116,7 @@ contract CoveredCDSInvariantTest is CoveredCDSTestBase {
       wrapper.balanceOf(address(facility)),
       facility.remainingHolderShares() + facility.sellerRecoveryShares()
     );
+    assertLe(facility.totalRecoverySharesAllocated(), facility.defaultHolderShares());
   }
 
   function invariantReceiptSupplyMatchesBalances() public view {

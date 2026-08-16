@@ -13,6 +13,7 @@ interface IERC20Like {
 
 interface IWildcatMarketLike is IERC20Like {
   function asset() external view returns (address);
+  function scaledBalanceOf(address account) external view returns (uint256);
   function delinquencyFeeBips() external view returns (uint256);
   function delinquencyGracePeriod() external view returns (uint256);
   function updateState() external;

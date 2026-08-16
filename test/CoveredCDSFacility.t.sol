@@ -23,6 +23,21 @@ contract CoveredCDSFacilityTest is CoveredCDSTestBase {
     assertEq(uint256(facility.lifecycle()), uint256(CoveredCDSFacility.Lifecycle.Active));
   }
 
+  function testActivationRequiresCollateralStillPresent() public {
+    CoveredCDSFacility facility = _create();
+    baseAsset.burn(address(facility), 1);
+    vm.startPrank(lender);
+    baseAsset.approve(address(facility), type(uint256).max);
+    market.approve(address(facility), type(uint256).max);
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        CoveredCDSFacility.InsufficientCollateral.selector, NOTIONAL, NOTIONAL - 1
+      )
+    );
+    facility.activate();
+    vm.stopPrank();
+  }
+
   function testRejectsLateDelinquentAndSecondActivation() public {
     CoveredCDSFacility facility = _create();
     market.setTimeDelinquent(1);
@@ -113,6 +128,53 @@ contract CoveredCDSFacilityTest is CoveredCDSTestBase {
     vm.prank(recovery);
     facility.withdrawRecovery(recovery);
     assertEq(wrapper.balanceOf(recovery), initialShares);
+  }
+
+  function testSplitClaimsCannotPreserveSellerRecoveryDebt() public {
+    wrapper.setShareRatio(3, 5);
+    CoveredCDSFacility facility = _create();
+    _activate(facility);
+    uint256 claimed = 400;
+    market.setTimeDelinquent(uint32(facility.defaultThreshold()));
+    facility.checkpoint();
+
+    vm.startPrank(lender);
+    for (uint256 i; i < claimed; ++i) {
+      facility.claim(1, lender);
+    }
+    vm.stopPrank();
+
+    assertEq(facility.sellerRecoveryShares(), (claimed * 3) / 5);
+    assertEq(facility.totalRecoverySharesAllocated(), (claimed * 3) / 5);
+    assertEq(facility.remainingHolderShares(), (NOTIONAL * 3) / 5 - (claimed * 3) / 5);
+  }
+
+  function testUnprotectReturnsDebtAndReleasesMatchingCollateral() public {
+    wrapper.setShareRatio(3, 5);
+    CoveredCDSFacility facility = _create();
+    _activate(facility);
+    uint256 amount = NOTIONAL / 4;
+    uint256 sellerBefore = baseAsset.balanceOf(seller);
+
+    vm.prank(lender);
+    facility.unprotect(amount, lender);
+
+    assertEq(facility.totalSupply(), NOTIONAL - amount);
+    assertEq(facility.remainingCollateral(), NOTIONAL - amount);
+    assertEq(wrapper.balanceOf(lender), (amount * 3) / 5);
+    assertEq(baseAsset.balanceOf(seller), sellerBefore + amount);
+
+    market.setTimeDelinquent(uint32(facility.defaultThreshold()));
+    facility.checkpoint();
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        CoveredCDSFacility.WrongLifecycle.selector,
+        CoveredCDSFacility.Lifecycle.Active,
+        CoveredCDSFacility.Lifecycle.Defaulted
+      )
+    );
+    vm.prank(lender);
+    facility.unprotect(1, lender);
   }
 
   function testHealthyMaturityReturnsCollateralAndAllDebtShareDust() public {

@@ -45,6 +45,12 @@ contract CoveredCDSFactoryTest is CoveredCDSTestBase {
     vm.expectRevert(CoveredCDSFactory.InvalidNotional.selector);
     vm.prank(seller);
     factory.createFacility(params);
+
+    params = _params();
+    params.tenor = market.delinquencyGracePeriod() + 90 days - 1;
+    vm.expectRevert(CoveredCDSFactory.InvalidTenor.selector);
+    vm.prank(seller);
+    factory.createFacility(params);
   }
 
   function testRejectsFeeOnTransferCollateral() public {
