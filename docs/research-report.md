@@ -138,8 +138,8 @@ Sources:
 
 Unslashed and InsurAce coupled cover pools to investment or underwriting machinery. Sherlock supplied
 a sharper warning: capital backing its protection business entered a Maple pool containing
-uncollateralised Orthogonal Trading credit, then suffered expected loss after FTX and Orthogonal's
-default. Payout capital had taken a second credit risk when it might be needed for claims.
+uncollateralised credit from "Orthogonal Trading", then suffered expected loss after FTX and the
+firm's default. Payout capital had taken a second credit risk when it might be needed for claims.
 
 This does not mean productive collateral is impossible. It means an interface label such as ERC-4626
 does not remove economic correlation, loss or withdrawal risk.
@@ -173,8 +173,8 @@ The inspected baseline is `wildcat-finance/v2-protocol` commit
 `c7be4039f8f383a9dda4e45f63331c17d63f9ed9`.
 
 `MarketState.timeDelinquent` counts delinquent seconds. It rises while delinquent and decreases during
-a cure. The prototype's threshold is therefore the current net accumulator, not a monotonic lifetime
-sum. “Ninety days of penalised delinquency” means grace plus 90 days in that current state.
+a cure. The prototype's threshold is therefore the current net accumulator, not a lifetime sum that
+only increases. “Ninety days of penalised delinquency” means grace plus 90 days in that current state.
 
 `currentState()` can calculate the present state, but stock V2 cannot later prove that the threshold
 was met before expiry. The prototype gives qualifying default priority at the exact expiry timestamp.
@@ -243,7 +243,7 @@ ERC-4626 vault can bind directly.
 | Vault illiquidity | Restore before buyer assets; claims never call vault |
 | Expiry race | Default priority at equality; keeper still required |
 | Inexact tokens | Balance-delta checked transfers |
-| Reentrancy | Guarded facility and factory paths; hostile callback tests |
+| Callback re-entry | Guarded `CoveredCDSFacility` and factory paths; hostile callback tests |
 | Missed claim | One-year window, followed by debt-only redemption |
 | Regulatory treatment | Prototype warnings and need for jurisdiction-specific advice |
 

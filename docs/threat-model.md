@@ -1,4 +1,4 @@
-# Threat model
+# Covered CDS security assumptions
 
 ## Protected assets
 
@@ -61,9 +61,9 @@ collateral has reached zero. This prevents strategy yield or rounding residue fr
 This does not make the strategy risk-free. Loss reduces seller residual and may close future capacity.
 An ERC-4626 share may be hard to sell. The facility does not value or cap strategy risk.
 
-### Reentrancy and hostile tokens
+### Callback re-entry and hostile tokens
 
-Creation, fill, allocation and settlement cross token and vault boundaries. A single reentrancy guard
+Creation, fill, allocation and settlement cross token and vault boundaries. One `_entered` guard
 covers state-changing facility paths, and the factory guards creation. Exact-transfer checks reject
 fee-on-transfer behaviour. Tests exercise premium failure and vault callbacks.
 

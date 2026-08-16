@@ -106,7 +106,8 @@ Evidence:
 
 The X-ray model, all four round-one fixes, adjacent state transitions and the refreshed stateful
 campaign were reviewed again. Closed-market guards run after state refresh; every positive fill now
-advances wrapper custody; cumulative claim rounding is monotonic and capped by the default snapshot;
+advances wrapper custody; cumulative claim rounding never decreases as `totalPayouts` rises and stays
+capped by the default snapshot;
 and terminal release cannot bypass the claim window or holder debt redemption.
 
 Leads not pursued: the accepted late-entry horizon and stock-V2 historical observation limit remain
