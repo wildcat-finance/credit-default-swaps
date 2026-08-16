@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { IERC20Like, IWildcatMarketLike, IWildcatWrapperLike } from "./interfaces/ICoveredCDS.sol";
+import {
+  IERC20Like,
+  IERC4626Like,
+  IWildcatMarketLike,
+  IWildcatWrapperLike
+} from "./interfaces/ICoveredCDS.sol";
+import { MarketState } from "v2-protocol/libraries/MarketState.sol";
 import { ExactTransfer } from "./libraries/ExactTransfer.sol";
 import { FullMath } from "./libraries/FullMath.sol";
 
-/// @notice A one-fill, fully collateralised CDS whose receipt keeps debt and cover paired.
+/// @notice A continuously fillable, fully collateralised CDS whose receipt bundles debt and cover.
 contract CoveredCDSFacility {
   using ExactTransfer for IERC20Like;
 
@@ -13,33 +19,44 @@ contract CoveredCDSFacility {
     Offered,
     Active,
     Defaulted,
-    Matured,
-    Cancelled
+    Matured
   }
 
-  error ZeroAddress();
   error ZeroAmount();
   error WrongLifecycle(Lifecycle expected, Lifecycle actual);
   error NotSeller();
   error NotRecoveryBeneficiary();
-  error FundingStillOpen();
-  error FundingClosed();
+  error Expired();
+  error EntryClosed();
+  error CoverUnavailable(uint256 requested, uint256 available);
   error MarketAlreadyDelinquent();
-  error DefaultNotRecorded();
+  error MarketClosed();
+  error ZeroDebtShareFill();
   error ClaimWindowClosed();
   error ClaimWindowOpen();
   error InsufficientBalance();
   error InsufficientAllowance();
   error InvalidReceiver();
   error ReentrantCall();
-  error WrapperShareMismatch(uint256 reported, uint256 received);
-  error ReferenceShareMismatch(uint256 pulled, uint256 deposited);
+  error NoCollateralVault();
   error InsufficientCollateral(uint256 required, uint256 available);
+  error InsufficientExcessCash(uint256 requested, uint256 available);
+  error VaultDepositMismatch(uint256 reportedShares, uint256 receivedShares, uint256 spentAssets);
+  error VaultWithdrawalMismatch(
+    uint256 reportedShares, uint256 burnedShares, uint256 receivedAssets
+  );
 
-  event Activated(address indexed buyer, uint256 premium, uint256 wrapperShares, uint256 expiry);
+  event Filled(
+    address indexed buyer,
+    address indexed receiver,
+    uint256 coverAmount,
+    uint256 premium,
+    uint256 wrapperShares,
+    uint256 supply
+  );
+  event CollateralAllocated(uint256 assets, uint256 shares);
   event DefaultRecorded(uint256 timeDelinquent, uint256 threshold);
   event Matured();
-  event Cancelled();
   event Claimed(address indexed owner, address indexed receiver, uint256 amount, uint256 shares);
   event DebtRedeemed(
     address indexed owner, address indexed receiver, uint256 amount, uint256 shares
@@ -48,7 +65,7 @@ contract CoveredCDSFacility {
     address indexed owner, address indexed receiver, uint256 amount, uint256 shares
   );
   event RecoveryWithdrawn(address indexed receiver, uint256 shares);
-  event CollateralReleased(uint256 amount);
+  event CollateralReleased(uint256 accountingAmount, uint256 cash, uint256 vaultShares);
   event Transfer(address indexed from, address indexed to, uint256 amount);
   event Approval(address indexed owner, address indexed spender, uint256 amount);
 
@@ -60,17 +77,20 @@ contract CoveredCDSFacility {
   IWildcatMarketLike public immutable market;
   IWildcatWrapperLike public immutable wrapper;
   IERC20Like public immutable asset;
+  IERC4626Like public immutable collateralVault;
   address public immutable seller;
   address public immutable recoveryBeneficiary;
   uint256 public immutable notional;
-  uint256 public immutable fundingDeadline;
+  uint256 public immutable referenceShareBudget;
   uint256 public immutable tenor;
   uint256 public immutable annualPremiumBips;
+  uint256 public immutable entryDeadline;
+  uint256 public immutable expiry;
+  uint256 public immutable claimDeadline;
 
   Lifecycle public lifecycle;
-  uint256 public activatedAt;
-  uint256 public expiry;
-  uint256 public claimDeadline;
+  uint256 public totalFilled;
+  uint256 public totalPremiumPaid;
   uint256 public remainingCollateral;
   uint256 public totalPayouts;
   uint256 public remainingHolderShares;
@@ -100,10 +120,11 @@ contract CoveredCDSFacility {
     IWildcatMarketLike market_,
     IWildcatWrapperLike wrapper_,
     IERC20Like asset_,
+    IERC4626Like collateralVault_,
     address seller_,
     address recoveryBeneficiary_,
     uint256 notional_,
-    uint256 fundingDeadline_,
+    uint256 referenceShareBudget_,
     uint256 tenor_,
     uint256 annualPremiumBips_
   ) {
@@ -111,73 +132,115 @@ contract CoveredCDSFacility {
     market = market_;
     wrapper = wrapper_;
     asset = asset_;
+    collateralVault = collateralVault_;
     seller = seller_;
     recoveryBeneficiary = recoveryBeneficiary_;
     notional = notional_;
-    fundingDeadline = fundingDeadline_;
+    referenceShareBudget = referenceShareBudget_;
     tenor = tenor_;
     annualPremiumBips = annualPremiumBips_;
+    expiry = block.timestamp + tenor_;
+    entryDeadline = expiry - (market_.delinquencyGracePeriod() + DEFAULT_DELAY);
+    claimDeadline = block.timestamp + tenor_ + CLAIM_WINDOW;
     remainingCollateral = notional_;
     decimals = market_.decimals();
   }
 
-  function premium() public view returns (uint256) {
-    return FullMath.mulDivUp(notional, annualPremiumBips * tenor, PREMIUM_DENOMINATOR);
+  function availableCover() public view returns (uint256) {
+    if (block.timestamp > entryDeadline) return 0;
+    return remainingCollateral > totalSupply ? remainingCollateral - totalSupply : 0;
+  }
+
+  function premium(uint256 coverAmount) public view returns (uint256) {
+    if (block.timestamp >= expiry) return 0;
+    return FullMath.mulDivUp(
+      coverAmount, annualPremiumBips * (expiry - block.timestamp), PREMIUM_DENOMINATOR
+    );
   }
 
   function defaultThreshold() public view returns (uint256) {
     return market.delinquencyGracePeriod() + DEFAULT_DELAY;
   }
 
-  function activate() external nonReentrant {
-    _requireLifecycle(Lifecycle.Offered);
-    if (block.timestamp > fundingDeadline) revert FundingClosed();
-    if (market.currentState().timeDelinquent != 0) revert MarketAlreadyDelinquent();
-    uint256 collateralBalance = asset.balanceOf(address(this));
-    if (collateralBalance < remainingCollateral) {
-      revert InsufficientCollateral(remainingCollateral, collateralBalance);
+  /// @notice Buys cover while enough term remains for a fresh default to reach the threshold.
+  function fill(uint256 coverAmount, address receiver) external nonReentrant {
+    Lifecycle state = lifecycle;
+    if (state != Lifecycle.Offered && state != Lifecycle.Active) {
+      revert WrongLifecycle(Lifecycle.Active, state);
     }
+    if (block.timestamp >= expiry) revert Expired();
+    if (block.timestamp > entryDeadline) revert EntryClosed();
+    if (coverAmount == 0) revert ZeroAmount();
+    receiver = _validReceiver(receiver);
 
-    uint256 premiumAmount = premium();
+    market.updateState();
+    MarketState memory marketState = market.currentState();
+    if (marketState.isClosed) revert MarketClosed();
+    if (marketState.timeDelinquent != 0) revert MarketAlreadyDelinquent();
+
+    uint256 capacity = availableCover();
+    if (coverAmount > capacity) revert CoverUnavailable(coverAmount, capacity);
+    uint256 newSupply = totalSupply + coverAmount;
+
+    // Restore claim cash before taking either of the buyer's assets.
+    _restoreCash(newSupply);
+
+    uint256 shareTarget = _shareTarget(newSupply);
+    uint256 shares = shareTarget - remainingHolderShares;
+    if (shares == 0) revert ZeroDebtShareFill();
+    uint256 premiumAmount = premium(coverAmount);
     if (premiumAmount != 0) asset.pull(msg.sender, seller, premiumAmount);
-    uint256 scaledBefore = market.scaledBalanceOf(address(this));
-    ExactTransfer.callPull(IERC20Like(address(market)), msg.sender, address(this), notional);
-    uint256 scaledReceived = market.scaledBalanceOf(address(this)) - scaledBefore;
+    if (shares != 0) IERC20Like(address(wrapper)).pull(msg.sender, address(this), shares);
 
-    uint256 sharesBefore = wrapper.balanceOf(address(this));
-    ExactTransfer.setApproval(IERC20Like(address(market)), address(wrapper), 0);
-    ExactTransfer.setApproval(IERC20Like(address(market)), address(wrapper), notional);
-    uint256 reportedShares = wrapper.deposit(notional, address(this));
-    ExactTransfer.setApproval(IERC20Like(address(market)), address(wrapper), 0);
-    uint256 receivedShares = wrapper.balanceOf(address(this)) - sharesBefore;
-    if (reportedShares == 0 || receivedShares != reportedShares) {
-      revert WrapperShareMismatch(reportedShares, receivedShares);
-    }
-    if (receivedShares != scaledReceived) {
-      revert ReferenceShareMismatch(scaledReceived, receivedShares);
-    }
-
+    totalFilled += coverAmount;
+    totalPremiumPaid += premiumAmount;
+    remainingHolderShares = shareTarget;
     lifecycle = Lifecycle.Active;
-    activatedAt = block.timestamp;
-    expiry = block.timestamp + tenor;
-    claimDeadline = expiry + CLAIM_WINDOW;
-    remainingHolderShares = receivedShares;
-    _mint(msg.sender, notional);
-    emit Activated(msg.sender, premiumAmount, receivedShares, expiry);
+    _mint(receiver, coverAmount);
+    emit Filled(msg.sender, receiver, coverAmount, premiumAmount, shares, newSupply);
   }
 
-  /// @notice Updates the market, latches default through expiry, or latches healthy maturity after it.
+  /// @notice Deposits only cash that is not currently reserved for outstanding claims.
+  function allocate(uint256 assets) external nonReentrant {
+    Lifecycle state = lifecycle;
+    if (state != Lifecycle.Offered && state != Lifecycle.Active) {
+      revert WrongLifecycle(Lifecycle.Active, state);
+    }
+    if (block.timestamp >= expiry) revert Expired();
+    if (address(collateralVault) == address(0)) revert NoCollateralVault();
+    if (assets == 0) revert ZeroAmount();
+    uint256 cash = asset.balanceOf(address(this));
+    uint256 excess = cash > totalSupply ? cash - totalSupply : 0;
+    if (assets > excess) revert InsufficientExcessCash(assets, excess);
+
+    uint256 sharesBefore = collateralVault.balanceOf(address(this));
+    ExactTransfer.setApproval(asset, address(collateralVault), 0);
+    ExactTransfer.setApproval(asset, address(collateralVault), assets);
+    uint256 reportedShares = collateralVault.deposit(assets, address(this));
+    ExactTransfer.setApproval(asset, address(collateralVault), 0);
+    uint256 receivedShares = collateralVault.balanceOf(address(this)) - sharesBefore;
+    uint256 spentAssets = cash - asset.balanceOf(address(this));
+    if (reportedShares == 0 || receivedShares != reportedShares || spentAssets != assets) {
+      revert VaultDepositMismatch(reportedShares, receivedShares, spentAssets);
+    }
+    emit CollateralAllocated(assets, receivedShares);
+  }
+
+  /// @notice Latches default through expiry, or healthy maturity at expiry.
   function checkpoint() external nonReentrant {
-    _requireLifecycle(Lifecycle.Active);
+    Lifecycle state = lifecycle;
+    if (state != Lifecycle.Offered && state != Lifecycle.Active) {
+      revert WrongLifecycle(Lifecycle.Active, state);
+    }
     market.updateState();
     uint256 delinquency = market.currentState().timeDelinquent;
     uint256 threshold = defaultThreshold();
-    if (block.timestamp <= expiry && delinquency >= threshold) {
+    if (state == Lifecycle.Active && block.timestamp <= expiry && delinquency >= threshold) {
       lifecycle = Lifecycle.Defaulted;
       defaultSupply = totalSupply;
       defaultHolderShares = remainingHolderShares;
       emit DefaultRecorded(delinquency, threshold);
-    } else if (block.timestamp > expiry) {
+    } else if (block.timestamp >= expiry) {
       lifecycle = Lifecycle.Matured;
       emit Matured();
     }
@@ -190,7 +253,7 @@ contract CoveredCDSFacility {
     uint256 newTotalPayouts = totalPayouts + amount;
     uint256 targetRecoveryShares = newTotalPayouts == defaultSupply
       ? defaultHolderShares
-      : FullMath.mulDiv(defaultHolderShares, newTotalPayouts, defaultSupply);
+      : FullMath.mulDivUp(defaultHolderShares, newTotalPayouts, defaultSupply);
     uint256 shares = targetRecoveryShares - totalRecoverySharesAllocated;
     remainingCollateral -= amount;
     remainingHolderShares -= shares;
@@ -201,16 +264,21 @@ contract CoveredCDSFacility {
     emit Claimed(msg.sender, receiver, amount, shares);
   }
 
-  /// @notice Burns live protection and returns its debt, releasing the same seller collateral.
+  /// @notice Burns live protection, returns its debt and permanently reduces maximum cover.
   function unprotect(uint256 amount, address receiver) external nonReentrant {
     _requireLifecycle(Lifecycle.Active);
-    uint256 shares = _burnAndPartition(msg.sender, amount);
+    uint256 newSupply = totalSupply - amount;
+    uint256 shareTarget = _shareTarget(newSupply);
+    uint256 shares = remainingHolderShares - shareTarget;
+    _burn(msg.sender, amount);
+    remainingHolderShares = shareTarget;
     remainingCollateral -= amount;
     totalSellerReleased += amount;
+    if (newSupply == 0) lifecycle = Lifecycle.Offered;
     IERC20Like(address(wrapper)).push(_validReceiver(receiver), shares);
     asset.push(seller, amount);
     emit Unprotected(msg.sender, receiver, amount, shares);
-    emit CollateralReleased(amount);
+    emit CollateralReleased(amount, amount, 0);
   }
 
   /// @notice Returns debt shares after healthy maturity or after an expired default claim window.
@@ -234,6 +302,7 @@ contract CoveredCDSFacility {
     emit RecoveryWithdrawn(receiver, shares);
   }
 
+  /// @notice Releases terminal cash and vault shares in kind without calling the strategy.
   function releaseCollateral() external nonReentrant {
     if (msg.sender != seller) revert NotSeller();
     Lifecycle state = lifecycle;
@@ -241,16 +310,17 @@ contract CoveredCDSFacility {
     if (state != Lifecycle.Matured && state != Lifecycle.Defaulted) {
       revert WrongLifecycle(Lifecycle.Matured, state);
     }
-    _releaseRemainingCollateral();
-  }
+    uint256 accountingAmount = remainingCollateral;
+    uint256 cash = asset.balanceOf(address(this));
+    uint256 vaultShares =
+      address(collateralVault) == address(0) ? 0 : collateralVault.balanceOf(address(this));
+    if (accountingAmount == 0 && cash == 0 && vaultShares == 0) revert ZeroAmount();
+    remainingCollateral = 0;
+    totalSellerReleased += accountingAmount;
 
-  function cancel() external nonReentrant {
-    if (msg.sender != seller) revert NotSeller();
-    _requireLifecycle(Lifecycle.Offered);
-    if (block.timestamp <= fundingDeadline) revert FundingStillOpen();
-    lifecycle = Lifecycle.Cancelled;
-    _releaseRemainingCollateral();
-    emit Cancelled();
+    if (cash != 0) asset.push(seller, cash);
+    if (vaultShares != 0) IERC20Like(address(collateralVault)).push(seller, vaultShares);
+    emit CollateralReleased(accountingAmount, cash, vaultShares);
   }
 
   function transfer(address to, uint256 amount) external returns (bool) {
@@ -277,6 +347,27 @@ contract CoveredCDSFacility {
     return true;
   }
 
+  function _restoreCash(uint256 requiredCash) private {
+    uint256 cash = asset.balanceOf(address(this));
+    if (cash >= requiredCash) return;
+    uint256 required = requiredCash - cash;
+    if (address(collateralVault) == address(0)) revert InsufficientCollateral(requiredCash, cash);
+
+    uint256 sharesBefore = collateralVault.balanceOf(address(this));
+    uint256 reportedShares = collateralVault.withdraw(required, address(this), address(this));
+    uint256 burnedShares = sharesBefore - collateralVault.balanceOf(address(this));
+    uint256 receivedAssets = asset.balanceOf(address(this)) - cash;
+    if (receivedAssets != required || burnedShares != reportedShares) {
+      revert VaultWithdrawalMismatch(reportedShares, burnedShares, receivedAssets);
+    }
+  }
+
+  function _shareTarget(uint256 supply) private view returns (uint256) {
+    if (supply == 0) return 0;
+    if (supply == notional) return referenceShareBudget;
+    return FullMath.mulDivUp(referenceShareBudget, supply, notional);
+  }
+
   function _burnAndPartition(address owner, uint256 amount) private returns (uint256 shares) {
     uint256 supply = totalSupply;
     shares = amount == supply
@@ -299,18 +390,9 @@ contract CoveredCDSFacility {
     emit Transfer(owner, address(0), amount);
   }
 
-  function _releaseRemainingCollateral() private {
-    uint256 amount = remainingCollateral;
-    if (amount == 0) revert ZeroAmount();
-    remainingCollateral = 0;
-    totalSellerReleased += amount;
-    asset.push(seller, amount);
-    emit CollateralReleased(amount);
-  }
-
   function _mint(address to, uint256 amount) private {
-    totalSupply = amount;
-    balanceOf[to] = amount;
+    totalSupply += amount;
+    balanceOf[to] += amount;
     emit Transfer(address(0), to, amount);
   }
 

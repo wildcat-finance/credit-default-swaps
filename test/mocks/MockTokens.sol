@@ -104,6 +104,10 @@ contract MockMarket is MockERC20 {
     _state.timeDelinquent = value;
   }
 
+  function setClosed(bool value) external {
+    _state.isClosed = value;
+  }
+
   function updateState() external { }
 
   function currentState() external view returns (MarketState memory) {
@@ -133,12 +137,72 @@ contract MockWrapper is MockERC20 {
     misreport = value;
   }
 
+  function previewDeposit(uint256 assets) external view returns (uint256 shares) {
+    return (assets * shareNumerator) / shareDenominator;
+  }
+
+  function previewWithdraw(uint256 assets) external view returns (uint256 shares) {
+    return (assets * shareNumerator + shareDenominator - 1) / shareDenominator;
+  }
+
   function deposit(uint256 assets, address receiver) external returns (uint256 shares) {
     marketToken.transferFrom(msg.sender, address(this), assets);
     shares = (assets * shareNumerator) / shareDenominator;
     totalSupply += shares;
     balanceOf[receiver] += shares;
     return misreport ? shares + 1 : shares;
+  }
+}
+
+contract MockVault is MockERC20 {
+  MockERC20 public immutable assetToken;
+  address public immutable asset;
+  uint256 public withdrawLimit = type(uint256).max;
+  uint256 public assetNumerator = 1;
+  uint256 public shareDenominator = 1;
+
+  constructor(address asset_) MockERC20("Mock Collateral Vault", "vcUSD", 6) {
+    assetToken = MockERC20(asset_);
+    asset = asset_;
+  }
+
+  function setWithdrawLimit(uint256 limit) external {
+    withdrawLimit = limit;
+  }
+
+  function setRate(uint256 numerator, uint256 denominator) external {
+    assetNumerator = numerator;
+    shareDenominator = denominator;
+  }
+
+  function deposit(uint256 assets, address receiver) external returns (uint256 shares) {
+    assetToken.transferFrom(msg.sender, address(this), assets);
+    shares = (assets * shareDenominator) / assetNumerator;
+    totalSupply += shares;
+    balanceOf[receiver] += shares;
+    _callback();
+  }
+
+  function withdraw(uint256 assets, address receiver, address owner)
+    external
+    returns (uint256 shares)
+  {
+    if (assets > withdrawLimit) revert("WITHDRAW_LIMIT");
+    shares = (assets * shareDenominator + assetNumerator - 1) / assetNumerator;
+    if (msg.sender != owner) {
+      uint256 allowed = allowance[owner][msg.sender];
+      if (allowed != type(uint256).max) allowance[owner][msg.sender] = allowed - shares;
+    }
+    balanceOf[owner] -= shares;
+    totalSupply -= shares;
+    assetToken.transfer(receiver, assets);
+    _callback();
+  }
+
+  function _callback() private {
+    if (callbackEnabled) {
+      (lastCallbackSuccess,) = callbackTarget.call(callbackData);
+    }
   }
 }
 

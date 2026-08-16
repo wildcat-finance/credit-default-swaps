@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 import { CoveredCDSFacility } from "./CoveredCDSFacility.sol";
 import {
   IERC20Like,
+  IERC4626Like,
   IWildcatMarketLike,
   IWildcatWrapperLike,
   IWildcatArchControllerLike,
@@ -19,21 +20,23 @@ contract CoveredCDSFactory {
     address market;
     address wrapper;
     address recoveryBeneficiary;
+    address collateralVault;
     uint256 notional;
-    uint256 fundingDeadline;
     uint256 tenor;
     uint256 annualPremiumBips;
   }
 
   error ZeroAddress();
   error InvalidNotional();
-  error InvalidFundingDeadline();
   error InvalidTenor();
   error InvalidPremiumSpread();
   error UnregisteredMarket();
   error NoncanonicalWrapper();
   error InvalidWrapperAsset();
+  error InvalidCollateralVaultAsset();
+  error InvalidReferenceShareBudget();
   error ZeroDelinquencyFee();
+  error MarketClosed();
   error ReentrantCall();
 
   event FacilityCreated(
@@ -62,7 +65,6 @@ contract CoveredCDSFactory {
       revert ZeroAddress();
     }
     if (params.notional == 0) revert InvalidNotional();
-    if (params.fundingDeadline < block.timestamp) revert InvalidFundingDeadline();
     if (params.tenor == 0 || params.tenor > MAX_TENOR) revert InvalidTenor();
     if (params.annualPremiumBips > MAX_ANNUAL_PREMIUM_BIPS) revert InvalidPremiumSpread();
     if (!archController.isRegisteredMarket(params.market)) revert UnregisteredMarket();
@@ -76,20 +78,29 @@ contract CoveredCDSFactory {
     IWildcatMarketLike market = IWildcatMarketLike(params.market);
     IWildcatWrapperLike wrapper = IWildcatWrapperLike(params.wrapper);
     if (wrapper.asset() != params.market) revert InvalidWrapperAsset();
+    market.updateState();
+    if (market.currentState().isClosed) revert MarketClosed();
+    uint256 referenceShareBudget = wrapper.previewWithdraw(params.notional);
+    if (referenceShareBudget == 0) revert InvalidReferenceShareBudget();
     if (market.delinquencyFeeBips() == 0) revert ZeroDelinquencyFee();
-    if (params.tenor < market.delinquencyGracePeriod() + DEFAULT_DELAY) revert InvalidTenor();
+    if (params.tenor <= market.delinquencyGracePeriod() + DEFAULT_DELAY) revert InvalidTenor();
     IERC20Like baseAsset = IERC20Like(market.asset());
     if (address(baseAsset) == address(0)) revert ZeroAddress();
+    IERC4626Like collateralVault = IERC4626Like(params.collateralVault);
+    if (params.collateralVault != address(0) && collateralVault.asset() != address(baseAsset)) {
+      revert InvalidCollateralVaultAsset();
+    }
 
     facility = address(
       new CoveredCDSFacility(
         market,
         wrapper,
         baseAsset,
+        collateralVault,
         msg.sender,
         params.recoveryBeneficiary,
         params.notional,
-        params.fundingDeadline,
+        referenceShareBudget,
         params.tenor,
         params.annualPremiumBips
       )

@@ -11,9 +11,9 @@ interface IERC20Like {
   function decimals() external view returns (uint8);
 }
 
-interface IWildcatMarketLike is IERC20Like {
+interface IWildcatMarketLike {
   function asset() external view returns (address);
-  function scaledBalanceOf(address account) external view returns (uint256);
+  function decimals() external view returns (uint8);
   function delinquencyFeeBips() external view returns (uint256);
   function delinquencyGracePeriod() external view returns (uint256);
   function updateState() external;
@@ -22,7 +22,15 @@ interface IWildcatMarketLike is IERC20Like {
 
 interface IWildcatWrapperLike is IERC20Like {
   function asset() external view returns (address);
+  function previewWithdraw(uint256 assets) external view returns (uint256 shares);
+}
+
+interface IERC4626Like is IERC20Like {
+  function asset() external view returns (address);
   function deposit(uint256 assets, address receiver) external returns (uint256 shares);
+  function withdraw(uint256 assets, address receiver, address owner)
+    external
+    returns (uint256 shares);
 }
 
 interface IWildcatArchControllerLike {
