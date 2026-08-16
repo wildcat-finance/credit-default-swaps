@@ -14,7 +14,7 @@ external call, role or permissionless state-changing entry point.
 - The git history is a two-commit new repository. Git-weighted history cannot yet reveal mature
   hotspots.
 
-## Attack surface
+## `Scaffold` call surface
 
 There is no value-holding or state-changing contract in this step. The relevant risks are supply-chain
 drift, a false dependency claim, CI divergence and research wording that promises behaviour not yet in
