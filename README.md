@@ -16,15 +16,20 @@ market records at least 90 days of penalised delinquency before expiry, the hold
 par and the matching wrapped debt becomes seller recovery. At healthy maturity, the seller takes back
 the idle collateral and receipt holders recover their wrapped debt.
 
+The receipt is freely transferable. Before default, a holder can also burn it to recover the
+corresponding wrapped debt; the same amount of protection collateral returns to the seller and the
+prepaid premium is not refunded. This makes the protected position tradable and lets holders return to
+the raw debt market without creating separable naked cover.
+
 The prototype deliberately excludes partial fills, claims committees, external default oracles,
 productive collateral, naked cover, AMMs, rollover and deployment tooling. Seller collateral remains
 idle because a yield strategy can be illiquid precisely when a claim must pay.
 
 ## Repository status
 
-This first step contains only the pinned research scaffold. Facility contracts arrive in the next
-delivery step. Start with the [research report](docs/research-report.md), then read the ordered
-[delivery runbook](docs/runbook.md).
+The facility implementation and its unit, fuzz and stateful accounting test suites are present. Start with
+the [research report](docs/research-report.md), then read the ordered [delivery
+runbook](docs/runbook.md).
 
 ## Toolchain
 

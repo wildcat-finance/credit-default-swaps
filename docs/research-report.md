@@ -38,9 +38,8 @@ deliver the associated debt when they exercise.
 
 A working prototype proves this path in Foundry:
 
-1. A seller creates a facility and escrows 1,000,000 units of the Wildcat market's base asset.
-2. A lender with 500,000 market tokens buys 400,000 units of cover and pays the pro-rata upfront
-   premium.
+1. A seller creates a facility and escrows 400,000 units of the Wildcat market's base asset.
+2. A lender fills all 400,000 units of cover and pays the upfront premium.
 3. The facility deposits that debt into the canonical wrapper and mints exactly 400,000 protected-debt
    receipts. Partial or second fills fail.
 4. A secondary transfer moves the bundled debt claim and protection together without consulting an
@@ -49,7 +48,9 @@ A working prototype proves this path in Foundry:
 6. Any account records default once; the record never reverses.
 7. The lender burns 400,000 receipts and receives 400,000 base-asset units. The wrapper shares become
    seller recovery.
-8. In the no-default path, the seller recovers collateral after expiry and holders redeem the wrapped
+8. Before default, a holder may burn receipts to recover the matching wrapped debt. The same amount of
+   seller collateral is released and the prepaid premium is not refunded.
+9. In the no-default path, the seller recovers collateral after expiry and holders redeem the wrapped
    debt rather than a CDS payout.
 
 The release check is a passing Foundry unit, fuzz and invariant suite covering those paths, the
@@ -380,7 +381,7 @@ One immutable offer, one full fill and one ERC-20 protected-debt ledger:
 - `fundingDeadline`, `tenor`, activation timestamp, expiry and claim deadline;
 - `annualPremiumBips` and the fixed 90-day post-grace threshold;
 - lifecycle `Offered -> Active -> Defaulted` or `Offered -> Active -> Matured`, plus unfilled
-  cancellation;
+  cancellation and partial receipt burns while active;
 - ERC-20 receipt balances, supply and allowances.
 
 Creation pulls the full notional from the seller. `activate` is all-or-nothing: it pulls the complete
@@ -388,6 +389,11 @@ reference debt and premium from one lender, deposits the debt into the canonical
 exactly `notional` receipts. It refuses partial fills, later fills, late funding and any nonzero
 delinquency. `checkpoint` calls `market.updateState()`, reads the current state, and makes default or
 maturity permanent.
+
+While active, `unprotect` lets a holder burn any receipt amount for its proportional wrapper shares.
+The facility releases the same normalized amount of protection collateral to the seller. Cover and
+debt therefore remain paired, but a holder can return the protected position to raw debt liquidity
+without waiting for expiry. The upfront premium remains with the seller.
 
 On default, `claim` burns receipts, reduces collateral, assigns the proportional wrapper shares to the
 seller's recovery account and pays par. It does not transfer recovery shares during the payout, so a
@@ -474,9 +480,10 @@ state, renders and temporary image sources out of the authored tree.
 
 ## Invariants for implementation and fuzzing
 
-1. Receipt supply is zero before activation and exactly `notional` when activation succeeds.
+1. Receipt supply is zero before activation, exactly `notional` when activation succeeds, and may
+   decrease only through settlement, redemption or live unprotection.
 2. No receipt can be minted after activation.
-3. `totalPayouts + remainingCollateral = initialCollateral` until authorised seller release.
+3. `totalPayouts + remainingCollateral + totalSellerReleased = initialCollateral`.
 4. `totalPayouts <= initialCollateral` forever.
 5. Default and healthy maturity are mutually exclusive and each is irreversible.
 6. No activation succeeds after deadline or with nonzero delinquency.
@@ -484,7 +491,8 @@ state, renders and temporary image sources out of the authored tree.
    seller recovery.
 8. A default claim cannot pay more than receipts burned or remaining collateral.
 9. A failed payout leaves receipt balance, collateral and wrapper partitions unchanged.
-10. Seller collateral cannot leave before healthy maturity, default claims, or unfilled cancellation.
+10. Seller collateral can leave only after healthy maturity, an expired claim window, unfilled
+    cancellation, or a live receipt burn that destroys the same amount of cover.
 11. Premium cannot leave the buyer unless activation and wrapper deposit both succeed.
 12. A recovery-share transfer failure cannot block a default payout.
 13. Final default claim or maturity redemption receives the wrapper-share rounding remainder.
