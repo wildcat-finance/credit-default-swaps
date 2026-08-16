@@ -26,3 +26,21 @@ Evidence:
 - split-claim regression uses wrapper shares below notional and compares cumulative recovery allocation
 - `audit/X-RAY.md`
 - `audit/FIZZ.md`
+
+## Step 2, round 2 -- 2026-08-16
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| S2-R2-01 | low | `docs/research-report.md`, `README.md` | The new live unprotection path contradicted the earlier collateral-release rule and was absent from the lifecycle description. | fixed in `42c2a43`; the report now states the burn, debt return, collateral release and non-refundable premium |
+
+Leads not pursued: exact historical threshold reconstruction remains outside stock V2, as recorded in
+round 1. The fixed contracts, selectors, lifecycle paths and accounting properties produced no new
+code finding.
+
+Evidence:
+
+- `forge fmt --check`
+- `forge build`
+- `FOUNDRY_PROFILE=ci forge test`: 23 passed, 0 failed, 0 skipped
+- two fuzz properties at 1,000 runs each
+- three invariant properties at 256 runs and 32,768 calls each, with no handler revert

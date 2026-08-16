@@ -46,3 +46,15 @@ After `e226d13`:
 This campaign proves the listed accounting properties for the mock state machine. It does not replace
 a deployed Wildcat V2 integration test or establish that the stock market timer preserves a missed
 historical threshold.
+
+## Round 2 result
+
+The fixed tree and refreshed unprotection handler passed the CI campaign:
+
+- unit, fuzz and invariant suites: 23 passed, 0 failed, 0 skipped;
+- fuzz runs: 1,000 for each of two properties;
+- invariant runs: 256;
+- calls: 32,768 for each of three properties; and
+- handler reverts: 0.
+
+Manual review found one documentation mismatch for unprotection and no new contract or harness defect.
