@@ -3,8 +3,10 @@
 ## Before creating a facility
 
 - [ ] Confirm the market is registered and the wrapper is canonical at the pinned V2 deployment.
+- [ ] Confirm the market is open; creation rejects a market whose refreshed state is closed.
 - [ ] Confirm the base asset has exact ERC-20 transfer behaviour.
 - [ ] Choose notional, fixed expiry tenor, annual spread and recovery beneficiary.
+- [ ] Confirm the tenor exceeds market grace plus 90 days and note the derived entry deadline.
 - [ ] Decide whether to leave collateral idle or bind an immutable ERC-4626 vault.
 - [ ] If using a vault, review its asset, loss model, withdrawal limits and share-transfer behaviour.
 - [ ] Fund and approve the full notional.
@@ -14,10 +16,12 @@
 
 - [ ] Read facility immutables and verify the expected market, wrapper, asset and expiry.
 - [ ] Verify the current market delinquency accumulator is zero.
+- [ ] Verify the market remains open and that the amount advances the cumulative wrapper-share target.
 - [ ] Check available cover and quote `premium(amount)` close to execution.
 - [ ] Hold and approve the required canonical wrapper shares and premium asset.
 - [ ] Remember that the receipt replaces the tendered wrapper position.
 - [ ] Record the claim deadline and set monitoring.
+- [ ] Confirm the entry deadline has not passed; later fills reject even though expiry is still ahead.
 
 ## While the facility is live
 

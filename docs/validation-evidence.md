@@ -26,6 +26,21 @@ Coverage includes multiple lenders, staggered premium decay, split-fill share eq
 rounding, delinquent and expired entry, live unprotection, default partitioning, maturity, fee tokens,
 vault allocation and restoration, loss, illiquidity, in-kind terminal release and reentrant callbacks.
 
+The first Step 3 audit pass added five directed tests. The 36-test tree covers closed-market creation
+and entry, rejection of a positive fill with no incremental debt share, claimant-side recovery
+rounding and terminal recovery of vault yield after accounting collateral reaches zero. Final release
+results are recorded after the clean audit round.
+
+The second Step 3 audit pass was clean. Coverage on the fixed tree measured 89.24% of lines, 87.87% of
+statements, 65.56% of branches and 90.59% of functions overall. The facility reached 92.23% line
+coverage and the factory reached 97.37%.
+
+The adopted horizon revision adds two boundary tests, taking the suite to 38. Entry succeeds at the
+derived deadline, leaves exactly the full default threshold until expiry and rejects one second later.
+The revised tree passes the release gate. Coverage measures 89.30% of lines, 87.97% of statements,
+66.30% of branches and 90.59% of functions overall; facility line coverage is 92.34% and factory line
+coverage remains 97.37%.
+
 ## Stateful properties
 
 1. Collateral accounting never creates notional.
@@ -46,6 +61,5 @@ example, Foundry formatting, build sizes, the default suite and the CI suite.
 
 ## Review status
 
-Earlier implementation stages have internal audit logs and stacked audit branches. Step 3 changes must
-complete a fresh Fiat audit round before publication. Nothing in this repository should be described
-as externally audited or production-ready.
+All three implementation stages have internal Fiat audit logs and stacked audit branches. This is not
+an external audit, and the prototype should not be described as production-ready.

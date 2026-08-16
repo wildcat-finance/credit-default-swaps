@@ -36,6 +36,7 @@ contract CoveredCDSFactory {
   error InvalidCollateralVaultAsset();
   error InvalidReferenceShareBudget();
   error ZeroDelinquencyFee();
+  error MarketClosed();
   error ReentrantCall();
 
   event FacilityCreated(
@@ -78,10 +79,11 @@ contract CoveredCDSFactory {
     IWildcatWrapperLike wrapper = IWildcatWrapperLike(params.wrapper);
     if (wrapper.asset() != params.market) revert InvalidWrapperAsset();
     market.updateState();
+    if (market.currentState().isClosed) revert MarketClosed();
     uint256 referenceShareBudget = wrapper.previewWithdraw(params.notional);
     if (referenceShareBudget == 0) revert InvalidReferenceShareBudget();
     if (market.delinquencyFeeBips() == 0) revert ZeroDelinquencyFee();
-    if (params.tenor < market.delinquencyGracePeriod() + DEFAULT_DELAY) revert InvalidTenor();
+    if (params.tenor <= market.delinquencyGracePeriod() + DEFAULT_DELAY) revert InvalidTenor();
     IERC20Like baseAsset = IERC20Like(market.asset());
     if (address(baseAsset) == address(0)) revert ZeroAddress();
     IERC4626Like collateralVault = IERC4626Like(params.collateralVault);

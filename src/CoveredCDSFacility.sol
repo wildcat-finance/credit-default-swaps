@@ -7,6 +7,7 @@ import {
   IWildcatMarketLike,
   IWildcatWrapperLike
 } from "./interfaces/ICoveredCDS.sol";
+import { MarketState } from "v2-protocol/libraries/MarketState.sol";
 import { ExactTransfer } from "./libraries/ExactTransfer.sol";
 import { FullMath } from "./libraries/FullMath.sol";
 
@@ -26,8 +27,11 @@ contract CoveredCDSFacility {
   error NotSeller();
   error NotRecoveryBeneficiary();
   error Expired();
+  error EntryClosed();
   error CoverUnavailable(uint256 requested, uint256 available);
   error MarketAlreadyDelinquent();
+  error MarketClosed();
+  error ZeroDebtShareFill();
   error ClaimWindowClosed();
   error ClaimWindowOpen();
   error InsufficientBalance();
@@ -80,6 +84,7 @@ contract CoveredCDSFacility {
   uint256 public immutable referenceShareBudget;
   uint256 public immutable tenor;
   uint256 public immutable annualPremiumBips;
+  uint256 public immutable entryDeadline;
   uint256 public immutable expiry;
   uint256 public immutable claimDeadline;
 
@@ -135,12 +140,14 @@ contract CoveredCDSFacility {
     tenor = tenor_;
     annualPremiumBips = annualPremiumBips_;
     expiry = block.timestamp + tenor_;
+    entryDeadline = expiry - (market_.delinquencyGracePeriod() + DEFAULT_DELAY);
     claimDeadline = block.timestamp + tenor_ + CLAIM_WINDOW;
     remainingCollateral = notional_;
     decimals = market_.decimals();
   }
 
   function availableCover() public view returns (uint256) {
+    if (block.timestamp > entryDeadline) return 0;
     return remainingCollateral > totalSupply ? remainingCollateral - totalSupply : 0;
   }
 
@@ -155,18 +162,21 @@ contract CoveredCDSFacility {
     return market.delinquencyGracePeriod() + DEFAULT_DELAY;
   }
 
-  /// @notice Buys cover until expiry by tendering the associated canonical wrapper shares.
+  /// @notice Buys cover while enough term remains for a fresh default to reach the threshold.
   function fill(uint256 coverAmount, address receiver) external nonReentrant {
     Lifecycle state = lifecycle;
     if (state != Lifecycle.Offered && state != Lifecycle.Active) {
       revert WrongLifecycle(Lifecycle.Active, state);
     }
     if (block.timestamp >= expiry) revert Expired();
+    if (block.timestamp > entryDeadline) revert EntryClosed();
     if (coverAmount == 0) revert ZeroAmount();
     receiver = _validReceiver(receiver);
 
     market.updateState();
-    if (market.currentState().timeDelinquent != 0) revert MarketAlreadyDelinquent();
+    MarketState memory marketState = market.currentState();
+    if (marketState.isClosed) revert MarketClosed();
+    if (marketState.timeDelinquent != 0) revert MarketAlreadyDelinquent();
 
     uint256 capacity = availableCover();
     if (coverAmount > capacity) revert CoverUnavailable(coverAmount, capacity);
@@ -177,6 +187,7 @@ contract CoveredCDSFacility {
 
     uint256 shareTarget = _shareTarget(newSupply);
     uint256 shares = shareTarget - remainingHolderShares;
+    if (shares == 0) revert ZeroDebtShareFill();
     uint256 premiumAmount = premium(coverAmount);
     if (premiumAmount != 0) asset.pull(msg.sender, seller, premiumAmount);
     if (shares != 0) IERC20Like(address(wrapper)).pull(msg.sender, address(this), shares);
@@ -242,7 +253,7 @@ contract CoveredCDSFacility {
     uint256 newTotalPayouts = totalPayouts + amount;
     uint256 targetRecoveryShares = newTotalPayouts == defaultSupply
       ? defaultHolderShares
-      : FullMath.mulDiv(defaultHolderShares, newTotalPayouts, defaultSupply);
+      : FullMath.mulDivUp(defaultHolderShares, newTotalPayouts, defaultSupply);
     uint256 shares = targetRecoveryShares - totalRecoverySharesAllocated;
     remainingCollateral -= amount;
     remainingHolderShares -= shares;
@@ -300,14 +311,14 @@ contract CoveredCDSFacility {
       revert WrongLifecycle(Lifecycle.Matured, state);
     }
     uint256 accountingAmount = remainingCollateral;
-    if (accountingAmount == 0) revert ZeroAmount();
+    uint256 cash = asset.balanceOf(address(this));
+    uint256 vaultShares =
+      address(collateralVault) == address(0) ? 0 : collateralVault.balanceOf(address(this));
+    if (accountingAmount == 0 && cash == 0 && vaultShares == 0) revert ZeroAmount();
     remainingCollateral = 0;
     totalSellerReleased += accountingAmount;
 
-    uint256 cash = asset.balanceOf(address(this));
     if (cash != 0) asset.push(seller, cash);
-    uint256 vaultShares =
-      address(collateralVault) == address(0) ? 0 : collateralVault.balanceOf(address(this));
     if (vaultShares != 0) IERC20Like(address(collateralVault)).push(seller, vaultShares);
     emit CollateralReleased(accountingAmount, cash, vaultShares);
   }

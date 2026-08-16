@@ -58,10 +58,11 @@ liquidity without solving a settlement problem.
 **Revisit if:** the product is an auction, the seller needs a minimum subscription before accepting
 risk or every buyer must start with the same forward protection period.
 
-## Model 4: continuous fixed-expiry issuance
+## Model 4: continuous issuance through expiry
 
-The implemented model fixes expiry when the seller creates the facility. Any number of lenders can
-buy any available amount until that timestamp. Each fill pays for its exact remaining term. Buyers
+This model fixed expiry when the seller created the facility. Any number of lenders could
+buy available amounts until that timestamp, provided the cumulative debt target increases by at
+least one wrapper-share unit. Each fill pays for its exact remaining term. Buyers
 tender canonical wrapper shares; the facility mints the same normalized amount of protected-debt
 receipts.
 
@@ -71,7 +72,28 @@ fills contribute the same aggregate shares. Entry stops at the first nonzero del
 
 The cost is that early and late buyers hold receipts with the same expiry but pay different premiums.
 That is intended: they bought different amounts of time. There is no dynamic spread, order book or
-mark-to-market adjustment.
+mark-to-market adjustment. Once less than the default threshold remains, however, a clean-market fill
+cannot default before expiry. That made the last part of the entry period economically misleading.
+
+**Revisit if:** late buyers deliberately want a receipt whose credit event can no longer mature, or a
+future default rule can use pre-entry delinquency without reopening toxic-flow risk.
+
+## Model 5: horizon-safe continuous issuance
+
+The final revision retains fixed expiry and multi-lender entry but closes issuance at:
+
+```text
+entry deadline = expiry - (market grace period + 90 days)
+```
+
+Every fill still pays for its exact remaining term. The last admissible buyer has the full period
+needed for uninterrupted delinquency to reach the credit-event threshold at exact expiry. The market
+grace period is immutable in Wildcat V2, so the deadline is fixed when the facility is created. A
+tenor that does not exceed the threshold is rejected because it leaves no positive entry period.
+
+This is not the arbitrary subscription window from Model 3. It requires no finalisation transaction
+and follows directly from the settlement rule. The cost is that unused capacity can no longer be sold
+during the final threshold period.
 
 ## Collateral strategy variants
 
@@ -95,15 +117,16 @@ V3 also needs an adapter because its pool is not an ERC-4626 vault.
 
 ## Decision matrix
 
-| Question | Balance-gated | One fill | Funding window | Continuous |
-| --- | --- | --- | --- | --- |
-| Covered throughout tenor | No | Yes | Yes | Yes |
-| Raw debt remains separate | Yes | No | No | No |
-| Several primary buyers | Yes | No | Yes | Yes |
-| Entry until expiry | Yes | No | No | Yes |
-| Common post-entry tenor | Per purchase | One buyer | Yes | No |
-| Works on stock V2 | Partly | Yes | Yes | Yes |
-| Current implementation | No | Historical | Historical | Yes |
+| Question | Balance-gated | One fill | Funding window | Through expiry | Horizon-safe |
+| --- | --- | --- | --- | --- | --- |
+| Covered throughout tenor | No | Yes | Yes | Yes | Yes |
+| Raw debt remains separate | Yes | No | No | No | No |
+| Several primary buyers | Yes | No | Yes | Yes | Yes |
+| Entry until expiry | Yes | No | No | Yes | No |
+| Common post-entry tenor | Per purchase | One buyer | Yes | No | No |
+| Fresh default reachable for every buyer | Depends | Yes | Yes | No | Yes |
+| Works on stock V2 | Partly | Yes | Yes | Yes | Yes |
+| Current implementation | No | Historical | Historical | Historical | Yes |
 
 ## Open decisions for the team
 

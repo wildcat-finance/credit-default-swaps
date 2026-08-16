@@ -5,9 +5,10 @@
 One market. One expiry. Cover in any size.
 
 This repository tests fixed-term, fully collateralised credit protection for a single Wildcat V2
-market. A seller escrows the maximum payout. Debt holders buy any available amount before the fixed
-expiry, tender the corresponding canonical wrapper shares and pay an upfront ACT/365 premium for the
-time left. The facility mints an ERC-20 receipt that carries the debt and protection together.
+market. A seller escrows the maximum payout. Debt holders buy any available amount while enough term
+remains for a fresh default, tender the corresponding canonical wrapper shares and pay an upfront
+ACT/365 premium for the time left. The facility mints an ERC-20 receipt that carries the debt and
+protection together.
 
 The code is a research prototype. It is not deployed, externally audited, production-ready or an
 offer of credit protection.
@@ -35,11 +36,19 @@ not refunded. This restores raw debt liquidity without leaving detached protecti
 
 ## Continuous fills
 
-Every facility has one notional cap and one expiry fixed at creation. It has no funding window and no
-single-buyer rule. Any number of lenders may fill any positive amount of remaining capacity while:
+Every facility has one notional cap and one expiry fixed at creation. It has no arbitrary funding
+window, finalisation transaction or single-buyer rule. Entry closes at:
 
-- the block timestamp is before expiry;
+```text
+expiry - (market grace period + 90 days)
+```
+
+Any number of lenders may fill available capacity while:
+
+- the block timestamp is no later than that entry deadline;
+- the reference market is not closed;
 - the market's current delinquency accumulator is zero; and
+- the purchase adds at least one canonical wrapper-share unit; and
 - the facility can restore cash reserves to the enlarged receipt supply.
 
 The premium for cover amount `N`, annual spread `s` in basis points and seconds remaining `t` is:
@@ -70,6 +79,8 @@ Anyone may call `checkpoint`. Default records when the market reports at least
 `delinquencyGracePeriod + 90 days` of `timeDelinquent` no later than expiry. At exact expiry, default
 has priority if the threshold is met. Otherwise the facility matures. Stock V2 cannot reconstruct a
 threshold crossing after the fact, so a live deployment would need a keeper at the expiry boundary.
+The derived entry deadline ensures every admitted buyer has at least the full default threshold left.
+A tenor that does not exceed that threshold is rejected at creation.
 
 ![Default and healthy maturity](docs/bd/assets/default-and-maturity.png)
 

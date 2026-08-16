@@ -3,11 +3,18 @@
 ## Who can buy cover?
 
 Anyone who can tender the required canonical wrapper shares. Entry rejects any current market
-delinquency and stops at expiry.
+delinquency and stops at the derived entry deadline, market grace plus 90 days before expiry.
 
 ## Can several lenders use one facility?
 
-Yes. Each chooses any positive amount of remaining capacity and pays for the exact time left.
+Yes. Each chooses an available amount and pays for the exact time left. Very small amounts reject if
+they add no canonical wrapper-share unit.
+
+## Why does entry close before expiry?
+
+Entry requires zero delinquency. Closing at market grace plus 90 days before expiry ensures every
+admitted buyer has enough time for a fresh uninterrupted delinquency to reach the credit-event
+threshold. The last buyer still pays premium through expiry.
 
 ## Is the receipt transferable?
 

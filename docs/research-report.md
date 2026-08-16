@@ -15,8 +15,9 @@ the receipt carries beneficial ownership of those shares together with fixed cov
 covered-only problem throughout the tenor: when the receipt moves, the debt and protection move
 together. At default, a holder surrenders the receipt for par and the debt passes to seller recovery.
 
-One seller escrows a maximum notional. Any number of lenders can buy any available amount until a
-fixed creation-time expiry. Each pays an upfront ACT/365 premium for the exact time left. A
+One seller escrows a maximum notional. Any number of lenders can buy available amounts through a
+deadline set at market grace plus 90 days before fixed expiry, subject to the purchase adding at least
+one wrapper-share unit. Each pays an upfront ACT/365 premium for the exact time left. A
 creation-time wrapper-share budget and cumulative ceiling targets prevent split fills from diluting
 earlier buyers. Entry stops at the first nonzero onchain delinquency signal.
 
@@ -28,7 +29,8 @@ claims never call the vault. Deploying live claim reserves remains a distinct, h
 
 A facility names one registered Wildcat V2 market, base asset, canonical wrapper, seller, recovery
 beneficiary, maximum notional, expiry tenor and annual spread. Creation pulls the full notional from
-the seller.
+the seller. A closed reference market is rejected both when the facility is created and when a lender
+tries to enter later.
 
 A buyer chooses a positive amount of remaining capacity and tenders the wrapper shares which the
 facility assigns to that normalized debt amount. The buyer also pays:
@@ -136,8 +138,8 @@ Sources:
 
 Unslashed and InsurAce coupled cover pools to investment or underwriting machinery. Sherlock supplied
 a sharper warning: capital backing its protection business entered a Maple pool containing
-uncollateralised Orthogonal Trading credit, then suffered expected loss after FTX and Orthogonal's
-default. Payout capital had taken a second credit risk when it might be needed for claims.
+uncollateralised credit from "Orthogonal Trading", then suffered expected loss after FTX and the
+firm's default. Payout capital had taken a second credit risk when it might be needed for claims.
 
 This does not mean productive collateral is impossible. It means an interface label such as ERC-4626
 does not remove economic correlation, loss or withdrawal risk.
@@ -171,8 +173,8 @@ The inspected baseline is `wildcat-finance/v2-protocol` commit
 `c7be4039f8f383a9dda4e45f63331c17d63f9ed9`.
 
 `MarketState.timeDelinquent` counts delinquent seconds. It rises while delinquent and decreases during
-a cure. The prototype's threshold is therefore the current net accumulator, not a monotonic lifetime
-sum. “Ninety days of penalised delinquency” means grace plus 90 days in that current state.
+a cure. The prototype's threshold is therefore the current net accumulator, not a lifetime sum that
+only increases. “Ninety days of penalised delinquency” means grace plus 90 days in that current state.
 
 `currentState()` can calculate the present state, but stock V2 cannot later prove that the threshold
 was met before expiry. The prototype gives qualifying default priority at the exact expiry timestamp.
@@ -198,7 +200,8 @@ Sources:
 Covered-only entry removes traders who cannot tender debt, but an existing lender can still know that
 the borrower is deteriorating. The prototype rejects a fill after any nonzero onchain delinquency. It
 does not observe private information or offchain distress. A fixed quoted spread also cannot reprice
-new information. Auctions, dynamic spreads and dealer markets are separate product experiments.
+new information. Entry closes at `expiry - (grace + 90 days)`, so every admitted fill retains the full
+credit-event horizon. Auctions, dynamic spreads and dealer markets are separate product experiments.
 
 ## Collateral deployment
 
@@ -240,7 +243,7 @@ ERC-4626 vault can bind directly.
 | Vault illiquidity | Restore before buyer assets; claims never call vault |
 | Expiry race | Default priority at equality; keeper still required |
 | Inexact tokens | Balance-delta checked transfers |
-| Reentrancy | Guarded facility and factory paths; hostile callback tests |
+| Callback re-entry | Guarded `CoveredCDSFacility` and factory paths; hostile callback tests |
 | Missed claim | One-year window, followed by debt-only redemption |
 | Regulatory treatment | Prototype warnings and need for jurisdiction-specific advice |
 

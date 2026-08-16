@@ -1,8 +1,8 @@
 # Covered Wildcat debt in one page
 
 A seller posts the maximum cash payout for one Wildcat market and fixes an expiry and annual spread.
-Debt holders can buy any amount of available cover until expiry. Each buyer tenders canonical wrapper
-shares and pays only for the time remaining.
+Debt holders can buy any available cover until market grace plus 90 days before expiry. Each buyer
+tenders canonical wrapper shares and pays only for the time remaining.
 
 The buyer receives a transferable ERC-20 protected-debt receipt. It is useful as one priced position:
 the debt and cover cannot drift into different wallets. If 90 days of penalised delinquency is
