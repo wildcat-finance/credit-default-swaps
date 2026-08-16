@@ -41,6 +41,7 @@ contract CoveredCDSFactory {
   );
 
   uint256 public constant MAX_TENOR = 10 * 365 days;
+  uint256 public constant DEFAULT_DELAY = 90 days;
   uint256 public constant MAX_ANNUAL_PREMIUM_BIPS = 100_000;
 
   IWildcatArchControllerLike public immutable archController;
@@ -76,6 +77,7 @@ contract CoveredCDSFactory {
     IWildcatWrapperLike wrapper = IWildcatWrapperLike(params.wrapper);
     if (wrapper.asset() != params.market) revert InvalidWrapperAsset();
     if (market.delinquencyFeeBips() == 0) revert ZeroDelinquencyFee();
+    if (params.tenor < market.delinquencyGracePeriod() + DEFAULT_DELAY) revert InvalidTenor();
     IERC20Like baseAsset = IERC20Like(market.asset());
     if (address(baseAsset) == address(0)) revert ZeroAddress();
 

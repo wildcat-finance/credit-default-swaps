@@ -28,6 +28,11 @@ contract MockERC20 {
     balanceOf[to] += amount;
   }
 
+  function burn(address from, uint256 amount) external {
+    balanceOf[from] -= amount;
+    totalSupply -= amount;
+  }
+
   function setFeeBips(uint256 feeBips_) external {
     feeBips = feeBips_;
   }
@@ -70,6 +75,8 @@ contract MockMarket is MockERC20 {
   address public immutable asset;
   uint256 public delinquencyFeeBips = 500;
   uint256 public delinquencyGracePeriod = 2 weeks;
+  uint256 public scaleNumerator = 1;
+  uint256 public scaleDenominator = 1;
   MarketState internal _state;
 
   constructor(address asset_) MockERC20("Wildcat Market", "wmUSD", 6) {
@@ -82,6 +89,15 @@ contract MockMarket is MockERC20 {
 
   function setGracePeriod(uint256 value) external {
     delinquencyGracePeriod = value;
+  }
+
+  function setScaleRatio(uint256 numerator, uint256 denominator) external {
+    scaleNumerator = numerator;
+    scaleDenominator = denominator;
+  }
+
+  function scaledBalanceOf(address account) external view returns (uint256) {
+    return (balanceOf[account] * scaleNumerator) / scaleDenominator;
   }
 
   function setTimeDelinquent(uint32 value) external {
@@ -110,6 +126,7 @@ contract MockWrapper is MockERC20 {
   function setShareRatio(uint256 numerator, uint256 denominator) external {
     shareNumerator = numerator;
     shareDenominator = denominator;
+    marketToken.setScaleRatio(numerator, denominator);
   }
 
   function setMisreport(bool value) external {

@@ -34,6 +34,11 @@ library ExactTransfer {
     }
   }
 
+  /// @dev Calls transferFrom without comparing rebasing balance views.
+  function callPull(IERC20Like token, address from, address to, uint256 amount) internal {
+    _call(address(token), abi.encodeCall(token.transferFrom, (from, to, amount)));
+  }
+
   function setApproval(IERC20Like token, address spender, uint256 amount) internal {
     _call(address(token), abi.encodeCall(token.approve, (spender, amount)));
   }
