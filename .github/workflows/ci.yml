@@ -21,14 +21,5 @@ jobs:
         with:
           version: v1.7.1
 
-      - name: Verify dependency pins
-        run: ./script/check-dependencies.sh
-
-      - name: Build
-        run: forge build
-
-      - name: Test
-        run: forge test
-
-      - name: Check Markdown
-        run: ./script/check-markdown.sh
+      - name: Run release gate
+        run: ./script/release-gate.sh
