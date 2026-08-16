@@ -97,3 +97,27 @@ Evidence:
 - five stateful accounting properties at 128,000 calls each under the default profile
 - CI fuzz properties at 1,000 runs and stateful properties at 32,768 calls each
 - `script/release-gate.sh`: passed, including dependency, Markdown, raster, arithmetic and size checks
+
+## Step 3, round 2 -- 2026-08-16
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | No findings. | clean |
+
+The X-ray model, all four round-one fixes, adjacent state transitions and the refreshed stateful
+campaign were reviewed again. Closed-market guards run after state refresh; every positive fill now
+advances wrapper custody; cumulative claim rounding is monotonic and capped by the default snapshot;
+and terminal release cannot bypass the claim window or holder debt redemption.
+
+Leads not pursued: the accepted late-entry horizon and stock-V2 historical observation limit remain
+product terms. The seller-selected vault, exact-transfer assets and reference-market availability
+remain explicit external assumptions rather than defects introduced by the fixes.
+
+Evidence:
+
+- `forge coverage --report summary`: 89.24% lines, 87.87% statements, 65.56% branches and 90.59% functions
+- `src/CoveredCDSFacility.sol`: 92.23% line coverage
+- `src/CoveredCDSFactory.sol`: 97.37% line coverage
+- 36 Foundry tests passed
+- five invariants completed 128,000 calls each with no failure or handler revert
+- round-one release gate remained green on the fixed tree

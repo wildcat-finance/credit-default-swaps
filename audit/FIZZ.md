@@ -93,3 +93,10 @@ The Solidity review still found boundary cases outside the original randomized s
 regressions were added for zero-share fills, discrete partial-claim recovery, closed markets and
 terminal vault yield. This is a refreshed Foundry stateful campaign; no claim is made that the Fizz
 generator produced a separate Medusa or Echidna harness for this round.
+
+## Round 2 result
+
+The fixed tree repeated the default stateful campaign during coverage collection. All 36 tests passed;
+each of the five invariants completed 128,000 calls with no failed property or handler revert. Directed
+regressions for the four round-one defects also passed. The second review found no new harness or
+contract defect.

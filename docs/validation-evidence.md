@@ -31,6 +31,10 @@ and entry, rejection of a positive fill with no incremental debt share, claimant
 rounding and terminal recovery of vault yield after accounting collateral reaches zero. Final release
 results are recorded after the clean audit round.
 
+The second Step 3 audit pass was clean. Coverage on the fixed tree measured 89.24% of lines, 87.87% of
+statements, 65.56% of branches and 90.59% of functions overall. The facility reached 92.23% line
+coverage and the factory reached 97.37%.
+
 ## Stateful properties
 
 1. Collateral accounting never creates notional.
@@ -51,6 +55,5 @@ example, Foundry formatting, build sizes, the default suite and the CI suite.
 
 ## Review status
 
-Earlier implementation stages have internal audit logs and stacked audit branches. Step 3 changes must
-complete a fresh Fiat audit round before publication. Nothing in this repository should be described
-as externally audited or production-ready.
+All three implementation stages have internal Fiat audit logs and stacked audit branches. This is not
+an external audit, and the prototype should not be described as production-ready.
