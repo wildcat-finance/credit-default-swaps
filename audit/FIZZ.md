@@ -43,7 +43,7 @@ After `e226d13`:
 - handler reverts: 0; and
 - invariant failures: 0.
 
-This campaign proves the listed accounting properties for the mock state machine. It does not replace
+This campaign checks the listed accounting properties against the mock state machine. It does not replace
 a deployed Wildcat V2 integration test or establish that the stock market timer preserves a missed
 historical threshold.
 
@@ -63,4 +63,4 @@ Manual review found one documentation mismatch for unprotection and no new contr
 
 No Solidity changed after round 2. The CI campaign was repeated after the product documents were
 corrected: 23 tests passed, including both 1,000-run fuzz properties and three 32,768-call stateful
-properties. No invariant failed and no handler call reverted.
+properties. No accounting property failed and no handler call reverted.

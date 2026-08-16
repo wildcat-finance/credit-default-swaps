@@ -54,9 +54,9 @@ is an operational keeper dependency, not data the facility can reconstruct.
 
 ### External calls
 
-Creation pulls the protection asset only after deploying the facility; factory reentrancy is locked
-across the operation. Facility activation, checkpointing, settlement, unprotection and withdrawals are
-non-reentrant. State changes precede payout calls and a failed transfer reverts the complete operation.
+Creation pulls the protection asset only after deploying the facility; the factory's `_entered` lock
+covers the operation. The facility uses the same lock for activation, checkpointing, settlement,
+unprotection and withdrawals. State changes precede payout calls and a failed transfer reverts the complete operation.
 Seller recovery shares are first assigned internally, so a seller-side wrapper transfer failure cannot
 block a holder's cash claim.
 
@@ -81,7 +81,7 @@ make a successful exact base-asset payout smaller than the amount recorded.
 
 The unit suite exercises factory binding, hostile base assets, activation atomicity, premium rounding,
 delinquency boundaries, cure, expiry ordering, receipt transfer, claims, maturity, cancellation,
-reentrancy, unprotection and recovery withdrawal. The split-claim regression uses a 3:5 scaled-share
+callback re-entry, unprotection and recovery withdrawal. The split-claim regression uses a 3:5 scaled-share
 ratio, matching the direction of a real interest-accrued Wildcat wrapper.
 
 The stateful handler varies time, delinquency, transfers, claims, redemptions, unprotection, collateral

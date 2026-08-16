@@ -14,7 +14,7 @@ Suite: `hexaemeron:x-ray`, `hexaemeron:solidity-auditor`, `hexaemeron:fizz`.
 
 Leads not pursued: a late checkpoint cannot reconstruct a threshold crossed and cured before expiry.
 The contract and product documents disclose this stock-V2 observation limit and require a keeper to
-record default no later than expiry. Exact monotonic cumulative delinquency needs a market change or an
+record default no later than expiry. An exact lifetime counter that never decreases needs a market change or an
 oracle, so it remains outside this prototype.
 
 Evidence:
@@ -54,7 +54,7 @@ Evidence:
 Leads not pursued: the disclosed stock-V2 historical observation limit only.
 
 The X-ray model, contract review and refreshed Fizz-compatible Foundry campaign were repeated after
-the documentation fix. Contract behavior, documentation and the invariant ledger agree.
+the documentation fix. Contract behaviour, documentation and the accounting properties agree.
 
 Evidence:
 

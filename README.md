@@ -27,7 +27,7 @@ idle because a yield strategy can be illiquid precisely when a claim must pay.
 
 ## Repository status
 
-The facility implementation and its unit, fuzz and stateful invariant suites are present. Start with
+The facility implementation and its unit, fuzz and stateful accounting test suites are present. Start with
 the [research report](docs/research-report.md), then read the ordered [delivery
 runbook](docs/runbook.md).
 
